@@ -32,7 +32,7 @@ impl ModernizeServer {
         let findings = self.engine.scan(url.path(), &source);
         let diagnostics: Vec<Diagnostic> = findings
             .into_iter()
-            .map(|f| self.finding_to_diagnostic(url, &f))
+            .map(|f| self.finding_to_diagnostic(url, &source, &f))
             .collect();
 
         self.client
@@ -40,13 +40,7 @@ impl ModernizeServer {
             .await;
     }
 
-    fn finding_to_diagnostic(&self, url: &Url, f: &Finding) -> Diagnostic {
-        let source = self
-            .documents
-            .blocking_read()
-            .get(url)
-            .cloned()
-            .unwrap_or_default();
+    fn finding_to_diagnostic(&self, url: &Url, source: &str, f: &Finding) -> Diagnostic {
         let range = byte_pos_to_lsp_range(&source, f.span.0, f.span.1);
 
         let severity = match f.level {
