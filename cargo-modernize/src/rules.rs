@@ -10,7 +10,19 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize, clap::ValueEnum)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Deserialize,
+    Serialize,
+    clap::ValueEnum,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum Category {
     /// A newer major/minor of a dependency changes APIs you use.
@@ -59,7 +71,19 @@ pub enum FixSafety {
 }
 
 /// ESLint-style severity. `suggest` is an opinion; `off` disables the rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize, clap::ValueEnum)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Deserialize,
+    Serialize,
+    clap::ValueEnum,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum Level {
     Off,
@@ -200,13 +224,21 @@ struct RawFeatures {
 }
 
 pub static FEATURES: LazyLock<Features> = LazyLock::new(|| {
-    let raw: RawFeatures = toml::from_str(include_str!("../rules/features.toml")).expect("features.toml");
-    Features { beta: parse_loose_version(&raw.beta).expect("beta version"), lang: raw.lang, lib: raw.lib }
+    let raw: RawFeatures =
+        toml::from_str(include_str!("../rules/features.toml")).expect("features.toml");
+    Features {
+        beta: parse_loose_version(&raw.beta).expect("beta version"),
+        lang: raw.lang,
+        lib: raw.lib,
+    }
 });
 
 impl Features {
     pub fn since(&self, name: &str) -> Option<(&str, &'static str)> {
-        self.lang.get(name).map(|v| (v.as_str(), "language")).or_else(|| self.lib.get(name).map(|v| (v.as_str(), "library")))
+        self.lang
+            .get(name)
+            .map(|v| (v.as_str(), "language"))
+            .or_else(|| self.lib.get(name).map(|v| (v.as_str(), "library")))
     }
 }
 
@@ -215,23 +247,38 @@ pub struct Applies {
     pub note: Option<String>,
     /// The replacement is only on the beta channel; findings are capped at `suggest`.
     pub beta: bool,
+    /// The replacement targets a future Rust version not yet on the installed toolchain;
+    /// findings are not actionable unless nightly is installed or `--allow-future` is passed.
+    pub upcoming: bool,
 }
 
 /// Availability of something stabilized in `since`, given the toolchain and MSRV.
-pub fn availability(since: &str, rustc: Option<&Version>, msrv: Option<&Version>, msrv_str: &str) -> Option<Applies> {
+pub fn availability(
+    since: &str,
+    rustc: Option<&Version>,
+    msrv: Option<&Version>,
+    msrv_str: &str,
+) -> Option<Applies> {
     let need = parse_loose_version(since)?;
     if rustc.is_some_and(|rc| rc < &need) {
         // Not on this toolchain yet. Still worth a heads-up if it's already in beta.
         return (need <= FEATURES.beta).then(|| Applies {
             note: Some(format!("stabilized in Rust {since}, currently in beta; lands on stable with the next release")),
             beta: true,
+            upcoming: true,
         });
     }
     let note = match msrv {
-        Some(m) if m < &need => Some(format!("needs rust-version >= {since} (crate declares {msrv_str})")),
+        Some(m) if m < &need => Some(format!(
+            "needs rust-version >= {since} (crate declares {msrv_str})"
+        )),
         _ => None,
     };
-    Some(Applies { note, beta: false })
+    Some(Applies {
+        note,
+        beta: false,
+        upcoming: false,
+    })
 }
 
 #[derive(Deserialize)]
@@ -249,7 +296,10 @@ const BUILTIN: &[(&str, &str)] = &[
     ("chrono.toml", include_str!("../rules/chrono.toml")),
     ("upgrades.toml", include_str!("../rules/upgrades.toml")),
     ("rusty.toml", include_str!("../rules/rusty.toml")),
-    ("maintenance.toml", include_str!("../rules/maintenance.toml")),
+    (
+        "maintenance.toml",
+        include_str!("../rules/maintenance.toml"),
+    ),
 ];
 
 pub fn builtin() -> Result<Vec<Rule>> {
@@ -261,7 +311,8 @@ pub fn builtin() -> Result<Vec<Rule>> {
 }
 
 pub fn load_file(path: &Path) -> Result<Vec<Rule>> {
-    let text = std::fs::read_to_string(path).with_context(|| format!("reading rules {}", path.display()))?;
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("reading rules {}", path.display()))?;
     parse(&path.display().to_string(), &text)
 }
 
@@ -283,36 +334,62 @@ pub fn parse(source: &str, text: &str) -> Result<Vec<Rule>> {
         if let Some(v) = &r.version {
             VersionReq::parse(v).with_context(ctx)?;
         }
-        if let Some(v) = &r.since_rust {
-            if parse_loose_version(v).is_none() {
-                bail!("{}: bad since_rust `{v}`", ctx());
-            }
+        if let Some(v) = &r.since_rust
+            && parse_loose_version(v).is_none()
+        {
+            bail!("{}: bad since_rust `{v}`", ctx());
         }
         let needs_paths = matches!(r.kind, Kind::Path);
         let needs_names = matches!(r.kind, Kind::Method);
         if needs_paths && r.paths.is_empty() || needs_names && r.names.is_empty() {
-            bail!("{}: {:?} rules need {}", ctx(), r.kind, if needs_paths { "paths" } else { "names" });
+            bail!(
+                "{}: {:?} rules need {}",
+                ctx(),
+                r.kind,
+                if needs_paths { "paths" } else { "names" }
+            );
         }
-        if matches!(r.kind, Kind::Ecosystem) && !r.pattern.as_deref().is_some_and(|p| crate::ecosystem::STATUSES.contains(&p)) {
-            bail!("{}: ecosystem rules need `pattern` = one of {}", ctx(), crate::ecosystem::STATUSES.join(", "));
+        if matches!(r.kind, Kind::Ecosystem)
+            && !r
+                .pattern
+                .as_deref()
+                .is_some_and(|p| crate::ecosystem::STATUSES.contains(&p))
+        {
+            bail!(
+                "{}: ecosystem rules need `pattern` = one of {}",
+                ctx(),
+                crate::ecosystem::STATUSES.join(", ")
+            );
         }
         if matches!(r.kind, Kind::Pattern) {
             match r.pattern.as_deref() {
                 Some(p) if crate::scan::PATTERNS.contains(&p) => {}
-                other => bail!("{}: unknown pattern {other:?}; known: {}", ctx(), crate::scan::PATTERNS.join(", ")),
+                other => bail!(
+                    "{}: unknown pattern {other:?}; known: {}",
+                    ctx(),
+                    crate::scan::PATTERNS.join(", ")
+                ),
             }
         }
         if matches!(r.kind, Kind::Dependency) && r.krate.is_none() {
             bail!("{}: dependency rules need `crate`", ctx());
         }
-        r.segs = r.paths.iter().flat_map(|p| expand(p)).map(|p| split(&p)).collect();
+        r.segs = r
+            .paths
+            .iter()
+            .flat_map(|p| expand(p))
+            .map(|p| split(&p))
+            .collect();
         r.import_segs = r.requires_import.iter().map(|p| split(p)).collect();
     }
     Ok(rules)
 }
 
 fn split(p: &str) -> Vec<String> {
-    p.trim_start_matches("::").split("::").map(str::to_owned).collect()
+    p.trim_start_matches("::")
+        .split("::")
+        .map(str::to_owned)
+        .collect()
 }
 
 /// Brace expansion: `a::{b,c}::d` → `a::b::d`, `a::c::d`.
@@ -336,18 +413,29 @@ impl Rule {
     pub fn applies(&self, pkg: &Package, rustc: Option<&Version>) -> Option<Applies> {
         if let Some(name) = &self.krate {
             let dep = pkg.dep(name)?;
-            if let (Some(req), Some(v)) = (&self.version, dep.version()) {
-                if !VersionReq::parse(req).ok()?.matches(&v) {
-                    return None;
-                }
+            if let (Some(req), Some(v)) = (&self.version, dep.version())
+                && !VersionReq::parse(req).ok()?.matches(&v)
+            {
+                return None;
             }
         }
-        if self.min_edition.is_some_and(|e| pkg.edition < e) || self.below_edition.is_some_and(|e| pkg.edition >= e) {
+        if self.min_edition.is_some_and(|e| pkg.edition < e)
+            || self.below_edition.is_some_and(|e| pkg.edition >= e)
+        {
             return None;
         }
         match &self.since_rust {
-            Some(since) => availability(since, rustc, pkg.rust_version.as_ref(), &pkg.rust_version_str()),
-            None => Some(Applies { note: None, beta: false }),
+            Some(since) => availability(
+                since,
+                rustc,
+                pkg.rust_version.as_ref(),
+                &pkg.rust_version_str(),
+            ),
+            None => Some(Applies {
+                note: None,
+                beta: false,
+                upcoming: false,
+            }),
         }
     }
 }
@@ -358,7 +446,15 @@ mod tests {
 
     #[test]
     fn brace_expansion() {
-        assert_eq!(expand("std::{u8, u16}::{MAX,MIN}"), ["std::u8::MAX", "std::u8::MIN", "std::u16::MAX", "std::u16::MIN"]);
+        assert_eq!(
+            expand("std::{u8, u16}::{MAX,MIN}"),
+            [
+                "std::u8::MAX",
+                "std::u8::MIN",
+                "std::u16::MAX",
+                "std::u16::MIN"
+            ]
+        );
         assert_eq!(expand("a::b"), ["a::b"]);
     }
 

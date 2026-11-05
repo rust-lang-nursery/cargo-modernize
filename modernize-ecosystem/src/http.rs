@@ -107,7 +107,7 @@ impl Http {
 
     pub fn text(&self, url: &str) -> Result<Option<String>> {
         Ok(match self.get(url)? {
-            Fetched::Ok(b) => Some(String::from_utf8_lossy(&b).into_owned()),
+            Fetched::Ok(b) => Some(String::from_utf8_lossy_owned(b)),
             Fetched::NotFound => None,
         })
     }
