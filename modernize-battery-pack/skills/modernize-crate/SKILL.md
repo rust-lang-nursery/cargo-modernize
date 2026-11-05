@@ -23,7 +23,7 @@ Order: std replacements and unmaintained crates first (small, local), then depen
 
 For each plan:
 
-1. `cargo modernize --only "<plan or crate>" --fix`. This applies renames and version bumps for that plan only.
+1. `cargo modernize --only "<plan or crate>" --diff --dangerous` to preview, then `--fix` (safe rewrites) or `--dangerous` (version bumps, std replacements, API migrations). `--dangerous` runs `cargo check` afterwards and reverts files that no longer compile. Read its "Reverted" line: those files need a hand migration.
 2. Work through the remaining findings for the plan by hand, using `suggestion` and `docs`.
 3. `cargo check --all-targets && cargo test`. Fix fallout before moving on.
 4. Drop dependencies that are now unused, e.g. `lazy_static` once no `lazy_static!` is left.

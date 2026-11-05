@@ -156,20 +156,116 @@ fn explain_shows_real_examples() {
     assert!(text.contains("rust-cookbook #865") && text.contains("LazyLock::new"), "{text}");
 }
 
+fn modernize(dir: &Path, args: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_cargo-modernize"))
+        .arg("modernize")
+        .arg("--manifest-path")
+        .arg(dir.join("Cargo.toml"))
+        .args(args)
+        .output()
+        .unwrap()
+}
+
+fn read(dir: &Path, file: &str) -> String {
+    std::fs::read_to_string(dir.join(file)).unwrap()
+}
+
 #[test]
-fn fix_applies_renames_and_bumps() {
+fn dangerous_applies_renames_bumps_and_std_replacements() {
     let dir = copy_fixture("legacy");
-    let v = run_json(&dir.join("Cargo.toml"), &["--fix"]);
-    let src = std::fs::read_to_string(dir.join("src/main.rs")).unwrap();
-    let manifest = std::fs::read_to_string(dir.join("Cargo.toml")).unwrap();
+    let out = modernize(&dir, &["--dangerous", "--allow-no-vcs", "--no-verify", "--format", "json"]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let src = read(&dir, "src/main.rs");
+    let manifest = read(&dir, "Cargo.toml");
+    // rand 0.8 → 0.10
     assert!(src.contains("use rand::distr::{Distribution, StandardUniform, Uniform};"), "{src}");
     assert!(src.contains("rand::rng()") && src.contains("rng.random()") && src.contains("rng.random_range(0..10)"));
     assert!(src.contains("use rand::RngExt;"));
     assert!(manifest.contains("rand = \"0.10\"") && manifest.contains("version = \"0.17\""), "{manifest}");
+    // The cookbook migrations.
+    assert!(src.contains("static WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r\"\\w+\").unwrap());"), "{src}");
+    assert!(src.contains("use std::sync::LazyLock;"));
+    assert!(src.contains("std::thread::available_parallelism().map_or(1, |n| n.get())"));
+    assert!(src.contains("std::thread::scope(|s| {") && src.contains("s.spawn(|| println!(\"{arr:?}\"));"), "{src}");
+    assert!(!src.contains(".unwrap();\n    let mut rdr"), "crossbeam's unwrap is gone: {src}");
     // Nothing fixable is left, and the rand plan is gone after the bump.
+    let v: Value = serde_json::from_slice(&out.stdout).unwrap();
     let left = rule_ids(&v);
     assert!(!left.iter().any(|i| i.starts_with("rand/")), "{left:?}");
-    assert!(v["packages"][0]["findings"].as_array().unwrap().iter().all(|f| f["fix"].is_null()));
+    assert!(v["packages"][0]["findings"].as_array().unwrap().iter().all(|f| f["fix"].is_null()), "{v:#}");
+}
+
+#[test]
+fn fix_applies_only_safe_rewrites() {
+    let dir = copy_fixture("rusty-2019");
+    let out = modernize(&dir, &["--fix", "--allow-no-vcs", "--no-verify", "--no-format", "--fail-on", "off"]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let src = read(&dir, "src/main.rs");
+    for modern in [
+        "matches!(c, 'a'..='z' | 'A'..='Z' | '_')",
+        "let Some(x) = v.first() else { return None };",
+        "name.as_deref()",
+        "usize::MAX",
+        "io::Error::other(\"empty line\")",
+        "mem::take(&mut s.stats)",
+        "\"Unable to create log file: {e}\"",
+        "#[derive(Debug, Default)]",
+        "#[default]",
+    ] {
+        assert!(src.contains(modern), "missing {modern:?} in\n{src}");
+    }
+    assert!(!src.contains("impl Default for ClickState"));
+    // Dangerous rewrites are left for --dangerous.
+    assert!(src.contains("binary.map_or(false, |b| b)"), "{src}");
+    assert!(src.contains("COUNT.with(|c| c.set(c.get() + 1))"));
+    assert!(read(&dir, "src/legacy_api/mod.rs").contains("__Nonexhaustive"));
+}
+
+#[test]
+fn dangerous_reverts_files_that_stop_compiling() {
+    let dir = copy_fixture("modernize-me");
+    let out = modernize(&dir, &["--dangerous", "--allow-no-vcs", "--fail-on", "off"]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stderr}");
+    assert!(stderr.contains("Reverted 1 file(s) whose rewrites didn't compile: src/broken.rs"), "{stderr}");
+    assert!(stderr.contains("Verified: `cargo check` passes"), "{stderr}");
+    let main = read(&dir, "src/main.rs");
+    assert!(main.contains("HITS.update(|c| c + 1)") && main.contains("is_some_and(|n| n.len() > 3)") && main.contains("(len < 10).ok_or_else("), "{main}");
+    assert!(!main.contains("use std::convert::TryFrom;"));
+    assert!(read(&dir, "src/broken.rs").contains("r.map_or(false, |x| x > 0)"));
+}
+
+#[test]
+fn refuses_to_rewrite_without_vcs() {
+    let dir = copy_fixture("modernize-me");
+    let before = read(&dir, "src/main.rs");
+    let out = modernize(&dir, &["--fix"]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("--allow-no-vcs"));
+    assert_eq!(read(&dir, "src/main.rs"), before);
+}
+
+#[test]
+fn diff_writes_nothing() {
+    let dir = copy_fixture("modernize-me");
+    let before = read(&dir, "src/main.rs");
+    let out = modernize(&dir, &["--diff"]);
+    assert_eq!(out.status.code(), Some(1), "changes pending → exit 1, like `cargo fmt --check`");
+    let diff = String::from_utf8_lossy(&out.stdout);
+    assert!(diff.contains("--- a/src/main.rs") && diff.contains("+    matches!(c, '0'..='9')"), "{diff}");
+    assert!(!diff.contains("is_some_and"), "--diff alone previews safe rewrites only: {diff}");
+    assert_eq!(read(&dir, "src/main.rs"), before);
+}
+
+#[test]
+fn human_output_looks_like_rustc() {
+    let out = modernize(&fixture("modernize-me"), &["--fail-on", "off"]);
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("note[rusty/matches-macro]: A `match` that only returns"), "{text}");
+    assert!(text.contains("  --> src/main.rs:31:5"), "{text}");
+    assert!(text.contains("help: rewrite, applied by `cargo modernize --fix`"), "{text}");
+    assert!(text.contains("31 -     match c {") && text.contains("31 +     matches!(c, '0'..='9')"), "{text}");
+    assert!(text.contains("generated") && text.contains("run `cargo modernize --fix` to apply"), "{text}");
 }
 
 #[test]

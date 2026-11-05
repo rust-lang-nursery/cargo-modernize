@@ -47,6 +47,17 @@ impl Category {
     }
 }
 
+/// How risky a rule's auto-fix is. `safe` fixes preserve behavior and are applied by
+/// `--fix`; `dangerous` ones (the default) can change behavior or break the build and
+/// need `--dangerous`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FixSafety {
+    Safe,
+    #[default]
+    Dangerous,
+}
+
 /// ESLint-style severity. `suggest` is an opinion; `off` disables the rule.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
@@ -129,6 +140,25 @@ pub struct Rule {
     /// Auto-fix: replace the matched identifier with this text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rename: Option<String>,
+    /// Auto-fix for method rules: per-name renames (`trim_left = "trim_start"`).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub renames: std::collections::BTreeMap<String, String>,
+    /// Auto-fix for path rules: replace the matched path (`once_cell::sync::Lazy` → `std::sync::LazyLock`).
+    /// Through an import alias, only the last segment is renamed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replace_with: Option<String>,
+    /// Auto-fix for path rules: replace a zero-argument call of the path with this expression.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replace_call: Option<String>,
+    /// Auto-fix for path rules: drop a leading `std::`/`core::` (`std::u32::MAX` → `u32::MAX`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub drop_prefix: bool,
+    /// Auto-fix for path rules: delete a `use` of the path when it's the item's only import.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub remove_use: bool,
+    /// Whether the auto-fix is `safe` (`--fix`) or `dangerous` (`--dangerous`, the default).
+    #[serde(default)]
+    pub fix: FixSafety,
     /// Auto-fix for `dependency` rules: new version requirement.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub to_version: Option<String>,

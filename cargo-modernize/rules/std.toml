@@ -4,11 +4,10 @@
 # ── lazy_static / once_cell ─────────────────────────────────────────────
 [[rule]]
 id = "std/lazy_static"
-kind = "macro"
+pattern = "lazy-static"
+kind = "pattern"
 category = "std"
 plan = "Now in std"
-names = ["lazy_static"]
-paths = ["lazy_static::lazy_static"]
 since_rust = "1.80"
 message = "`lazy_static!` is replaced by `std::sync::LazyLock` (Rust 1.80)."
 suggestion = "static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(\"...\").unwrap());"
@@ -39,6 +38,7 @@ message = "`lazy_static` is no longer needed: use `std::sync::LazyLock`. Drop th
 
 [[rule]]
 id = "std/once_cell-sync-lazy"
+replace_with = "std::sync::LazyLock"
 kind = "path"
 category = "std"
 plan = "Now in std"
@@ -49,6 +49,7 @@ suggestion = "use std::sync::LazyLock;"
 
 [[rule]]
 id = "std/once_cell-sync-oncecell"
+replace_with = "std::sync::OnceLock"
 kind = "path"
 category = "std"
 plan = "Now in std"
@@ -59,6 +60,7 @@ suggestion = "use std::sync::OnceLock;"
 
 [[rule]]
 id = "std/once_cell-unsync-lazy"
+replace_with = "std::cell::LazyCell"
 kind = "path"
 category = "std"
 plan = "Now in std"
@@ -68,6 +70,7 @@ message = "`once_cell::unsync::Lazy` is `std::cell::LazyCell` (Rust 1.80)."
 
 [[rule]]
 id = "std/once_cell-unsync-oncecell"
+replace_with = "std::cell::OnceCell"
 kind = "path"
 category = "std"
 plan = "Now in std"
@@ -87,6 +90,7 @@ message = "`once_cell` was upstreamed: `OnceLock`/`OnceCell` (1.70), `LazyLock`/
 # ── num_cpus ────────────────────────────────────────────────────────────
 [[rule]]
 id = "std/num_cpus"
+replace_call = "std::thread::available_parallelism().map_or(1, |n| n.get())"
 kind = "path"
 category = "std"
 plan = "Now in std"
@@ -143,10 +147,10 @@ message = "`is-terminal` was upstreamed as `std::io::IsTerminal` (Rust 1.70)."
 # ── crossbeam scoped threads ────────────────────────────────────────────
 [[rule]]
 id = "std/crossbeam-scope"
-kind = "path"
+pattern = "crossbeam-scope"
+kind = "pattern"
 category = "std"
 plan = "Now in std"
-paths = ["crossbeam::scope", "crossbeam::thread::scope", "crossbeam_utils::thread::scope"]
 since_rust = "1.63"
 message = "Scoped threads are in std: `std::thread::scope` (Rust 1.63). Spawned closures borrow from the enclosing stack, and the scope joins them all."
 suggestion = "std::thread::scope(|s| { s.spawn(|| ...); });"
@@ -217,13 +221,14 @@ suggestion = "let a: [T; N] = std::array::from_fn(|i| ...);"
 
 [[rule]]
 id = "std/itertools-repeat_n"
+fix = "safe"
+replace_with = "std::iter::repeat_n"
 kind = "path"
 category = "std"
 plan = "Now in std"
 paths = ["itertools::repeat_n"]
 since_rust = "1.82"
 message = "`std::iter::repeat_n` is in std (Rust 1.82)."
-rename = "repeat_n"
 
 [[rule]]
 id = "std/memoffset"
@@ -261,6 +266,8 @@ docs = "https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html"
 # ── deprecated std APIs ─────────────────────────────────────────────────
 [[rule]]
 id = "std/legacy-numeric-consts"
+fix = "safe"
+drop_prefix = true
 kind = "path"
 category = "idiom"
 plan = "Deprecated std APIs"
@@ -307,6 +314,7 @@ message = "`Error::description` / `Error::cause` are deprecated. Use `Display` (
 
 [[rule]]
 id = "std/panic-info"
+fix = "safe"
 kind = "path"
 category = "idiom"
 plan = "Deprecated std APIs"
@@ -317,15 +325,18 @@ message = "In panic hooks, `std::panic::PanicInfo` is now `std::panic::PanicHook
 
 [[rule]]
 id = "std/addr_of"
-kind = "macro"
+fix = "safe"
+pattern = "addr-of"
+kind = "pattern"
 category = "idiom"
 plan = "Modern idioms"
-paths = ["{std,core}::ptr::{addr_of,addr_of_mut}"]
 since_rust = "1.82"
 message = "`addr_of!(x)` / `addr_of_mut!(x)` have native syntax: `&raw const x` / `&raw mut x` (Rust 1.82)."
 
 [[rule]]
 id = "std/mem-prelude"
+fix = "safe"
+remove_use = true
 kind = "path"
 category = "idiom"
 plan = "Modern idioms"
@@ -335,8 +346,9 @@ message = "`size_of`, `size_of_val`, `align_of`, and `align_of_val` are in the p
 
 [[rule]]
 id = "std/try-macro"
-kind = "macro"
+fix = "safe"
+pattern = "try-macro"
+kind = "pattern"
 category = "idiom"
 plan = "Modern idioms"
-names = ["try"]
 message = "`try!(expr)` → `expr?`."

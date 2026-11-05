@@ -20,6 +20,7 @@ crate = "rand"                  # only when this package is a dependency…
 version = "<0.10"               # …at a (locked) version matching this semver req
 paths = ["rand::thread_rng"]    # whole-segment prefix match, resolved through `use`; `{a,b}` expands
 rename = "rng"                  # auto-fix: replace the matched identifier
+fix = "dangerous"               # safe = behavior-preserving (`--fix`); dangerous (default) = `--dangerous`
 message = "`rand::thread_rng()` was renamed `rand::rng()` (0.9)."
 suggestion = "rand::rng()"      # shown when there is no auto-fix
 docs = "https://rust-random.github.io/book/update.html"
@@ -31,6 +32,8 @@ source = "project, path/to/file.rs"
 ```
 
 `kind = "pattern"` rules name a built-in structural detector with `pattern = "let-else"`. The list is `PATTERNS` in `src/scan.rs`. A new detector is Rust code in the `Scanner` visitor plus a TOML rule.
+
+Other auto-fix fields: `renames` (per-name method renames), `replace_with` (swap a whole path, e.g. `once_cell::sync::Lazy` → `std::sync::LazyLock`), `replace_call` (rewrite a zero-argument call), `drop_prefix` (`std::u32::MAX` → `u32::MAX`), `remove_use` (delete a now-redundant import). Mark a fix `safe` only if it can't change behavior or break compilation on the crate's current dependencies and `rust-version`. A fix that needs a newer Rust is treated as dangerous automatically.
 
 Other fields: `names` (method/macro/attribute names), `requires_import` (method rules fire only in files importing one of these paths), `since_rust` (replacement's minimum Rust; noted against `rust-version`), `min_edition` / `below_edition`, `exclude` (extern-crate names), `to_version` (auto-bump for `dependency` rules).
 

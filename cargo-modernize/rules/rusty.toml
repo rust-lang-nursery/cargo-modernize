@@ -6,6 +6,7 @@
 
 [[rule]]
 id = "rusty/inline-format-args"
+fix = "safe"
 kind = "pattern"
 pattern = "inline-format-args"
 category = "rusty"
@@ -20,6 +21,7 @@ source = "alacritty, alacritty/src/logging.rs"
 
 [[rule]]
 id = "rusty/let-else"
+fix = "safe"
 kind = "pattern"
 pattern = "let-else"
 category = "rusty"
@@ -77,6 +79,7 @@ message = "`.map_or(true, f)` on an `Option` reads better as `.is_none_or(f)`."
 
 [[rule]]
 id = "rusty/as-deref"
+fix = "safe"
 kind = "pattern"
 pattern = "as-deref"
 category = "rusty"
@@ -100,6 +103,7 @@ suggestion = "valid.ok_or(Error::Invalid)?"
 
 [[rule]]
 id = "rusty/matches-macro"
+fix = "safe"
 kind = "pattern"
 pattern = "matches-macro"
 category = "rusty"
@@ -117,6 +121,7 @@ source = "just, src/lexer.rs"
 
 [[rule]]
 id = "rusty/mem-take"
+fix = "safe"
 kind = "pattern"
 pattern = "mem-take"
 category = "rusty"
@@ -130,6 +135,7 @@ source = "tokei, src/language/mod.rs"
 
 [[rule]]
 id = "rusty/io-error-other"
+fix = "safe"
 kind = "pattern"
 pattern = "io-error-other"
 category = "rusty"
@@ -203,6 +209,7 @@ docs = "https://github.com/rust-lang/rust/pull/157734"
 
 [[rule]]
 id = "rusty/derive-default-enum"
+fix = "safe"
 kind = "pattern"
 pattern = "derive-default-enum"
 category = "rusty"
@@ -261,11 +268,12 @@ suggestion = "trait Plugin: Any { … }   let any: &dyn Any = plugin; any.downca
 # ── path rules: associated constants and inherent replacements ────────────
 [[rule]]
 id = "rusty/max-value-fn"
-kind = "path"
+fix = "safe"
+pattern = "max-value-fn"
+kind = "pattern"
 category = "rusty"
 plan = "Associated constants"
 level = "warn"
-paths = ["{i8,i16,i32,i64,i128,isize,u8,u16,u32,u64,u128,usize}::{max_value,min_value}"]
 message = "`u32::max_value()` is a deprecated-in-future function. Use the associated constant `u32::MAX` (1.43)."
 [[rule.examples]]
 before = ".unwrap_or(usize::max_value());"
@@ -274,6 +282,8 @@ source = "bat, src/line_range.rs"
 
 [[rule]]
 id = "rusty/char-module"
+fix = "safe"
+drop_prefix = true
 kind = "path"
 category = "rusty"
 plan = "Associated constants"
@@ -283,6 +293,8 @@ message = "The `std::char` free functions and constants are associated items now
 
 [[rule]]
 id = "rusty/prelude-2021"
+fix = "safe"
+remove_use = true
 kind = "path"
 category = "rusty"
 plan = "Edition 2021 prelude"
@@ -333,6 +345,8 @@ docs = "https://doc.rust-lang.org/std/fs/fn.set_times.html"
 # ── deprecated spellings ───────────────────────────────────────────────────
 [[rule]]
 id = "rusty/trim_left"
+fix = "safe"
+renames = { trim_left = "trim_start", trim_left_matches = "trim_start_matches" }
 kind = "method"
 category = "idiom"
 plan = "Deprecated std APIs"
@@ -343,6 +357,8 @@ suggestion = "s.trim_start()"
 
 [[rule]]
 id = "rusty/trim_right"
+fix = "safe"
+renames = { trim_right = "trim_end", trim_right_matches = "trim_end_matches" }
 kind = "method"
 category = "idiom"
 plan = "Deprecated std APIs"
@@ -381,6 +397,7 @@ message = "`AsciiExt` is deprecated. The ASCII methods are inherent on `u8`, `ch
 # ── compiler features ───────────────────────────────────────────────────────
 [[rule]]
 id = "rusty/stable-feature-gate"
+fix = "safe"
 kind = "feature-gate"
 category = "rusty"
 plan = "Stabilized features"

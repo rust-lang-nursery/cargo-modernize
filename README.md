@@ -26,11 +26,16 @@ Ecosystem-wide modernization for Rust crates. Clippy tells you about your code; 
 
 ## Usage
 
+`cargo modernize` reports like rustc and rewrites like rustfmt:
+
 ```sh
 cargo install --path cargo-modernize
-cargo modernize                       # human report, grouped into plans
-cargo modernize --fix                 # apply renames + version bumps, then re-check
-cargo modernize --only rand --fix     # one plan at a time
+cargo modernize                       # rustc-style diagnostics with suggested rewrites
+cargo modernize --diff                # preview the safe rewrites as a diff (exit 1 if any)
+cargo modernize --fix                 # apply safe, behavior-preserving rewrites
+cargo modernize --dangerous           # modernize everything it can, then `cargo check` and revert what broke
+cargo modernize --only rand --dangerous   # one plan at a time
+cargo modernize --format plans        # grouped by upgrade plan instead of rustc-style
 cargo modernize --category rusty      # upgrade | std | deprecated | edition | idiom | rusty
 cargo modernize --min-level warn      # hide opinions
 cargo modernize --fail-on warn        # CI: exit 2 on warn or deny (default: deny only)
@@ -38,6 +43,38 @@ cargo modernize --explain rusty/let-else   # rationale + real-world before/after
 cargo modernize --format json         # for tools and agents
 cargo modernize --list-rules
 ```
+
+```
+note[rusty/matches-macro]: A `match` that only returns `true`/`false` is `matches!(x, Pat)`.
+  --> src/main.rs:31:5
+   |
+31 |     match c {
+   |     ^^^^^
+   |
+help: rewrite, applied by `cargo modernize --fix`
+   |
+31 -     match c {
+32 -         '0'..='9' => true,
+33 -         _ => false,
+34 -     }
+31 +     matches!(c, '0'..='9')
+   |
+```
+
+### Two tiers of rewrites
+
+| | applied by | examples |
+|---|---|---|
+| **safe** | `--fix` | inline format args, let-else, `matches!`, `mem::take`, `io::Error::other`, `as_deref`, `u32::max_value()` / `std::u32::MAX` → `u32::MAX`, `#[derive(Default)]` + `#[default]`, `trim_left` → `trim_start`, `try!` → `?`, removing stable `#![feature]` gates, `extern crate`, and imports the prelude now covers |
+| **dangerous** | `--dangerous` | version bumps and the API migrations that go with them (rand 0.8 → 0.10, ring, tokio, clap), `lazy_static!` → `LazyLock`, `once_cell` → std, `num_cpus::get()` → `available_parallelism()`, `crossbeam::scope` → `std::thread::scope`, `is_some_and` / `is_none_or` (syntax can't tell `Option` from `Result`), let chains, `bool::ok_or`, `LocalKey::update`, `#[non_exhaustive]` (an API change for your users), and any rewrite that needs a newer Rust than your `rust-version` |
+
+Rewriting follows `cargo fix`:
+- It refuses a dirty working tree unless you pass `--allow-dirty` (or `--allow-no-vcs` outside git).
+- It applies fixes in passes, since one rewrite can expose another. Each fix is atomic, and fixes that overlap wait for the next pass.
+- It runs rustfmt on files that were rustfmt-clean before (`--no-format` to skip).
+- It runs `cargo check` and reverts any file whose rewrites don't compile (`--no-verify` to skip). If the project didn't build to begin with, verification is skipped with a warning.
+
+Rewrites are built from slices of your source, so comments inside a rewritten expression survive. A rewrite that introduces a std item adds the `use` once (e.g. `use std::sync::LazyLock;`).
 
 ## Levels and `.modernize` files
 

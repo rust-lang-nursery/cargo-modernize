@@ -19,6 +19,7 @@ message = "`env::set_var` / `remove_var` are `unsafe` in edition 2024 because th
 
 [[rule]]
 id = "edition/extern-crate"
+fix = "safe"
 kind = "extern-crate"
 category = "edition"
 plan = "Edition 2018 idioms"

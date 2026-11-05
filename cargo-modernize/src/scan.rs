@@ -1,14 +1,13 @@
 //! Static analysis: parse every source file with `syn`, resolve paths through
-//! `use` imports, and match them against the active rules. Structural
-//! "new ways to be Rusty" detectors live at the bottom of this file.
+//! `use` imports, and match them against the active rules. Structural detectors
+//! and their rewrites live in `rewrite.rs`.
 
 use crate::config::Config;
 use crate::ecosystem::{self, Ecosystem};
 use crate::project::{LockPkg, Package};
-use crate::rules::{self, FEATURES, Kind, Level, Rule};
+use crate::rules::{self, FEATURES, FixSafety, Kind, Level, Rule};
 use anyhow::Result;
-use proc_macro2::Span;
-use quote::ToTokens;
+use proc_macro2::{LineColumn, Span};
 use semver::Version;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -16,7 +15,7 @@ use syn::ext::IdentExt;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
-use syn::{Expr, Lit, Pat, Stmt};
+use syn::{Expr, Lit};
 
 /// Built-in structural detectors that `kind = "pattern"` rules can name.
 pub const PATTERNS: &[&str] = &[
@@ -39,6 +38,11 @@ pub const PATTERNS: &[&str] = &[
     "lossy-owned",
     "vec-from-fn",
     "local-key-update",
+    "max-value-fn",
+    "try-macro",
+    "lazy-static",
+    "crossbeam-scope",
+    "addr-of",
 ];
 
 pub struct PackageReport {
@@ -54,43 +58,55 @@ pub struct Finding {
     pub level: Level,
     /// Relative to the workspace root, for display.
     pub file: PathBuf,
+    /// 1-based start.
     pub line: usize,
-    /// 1-based.
     pub column: usize,
+    /// 1-based end (exclusive column), for carets.
+    pub end_line: usize,
+    pub end_column: usize,
+    /// The full first line of the span.
+    pub source_line: String,
     pub snippet: String,
     /// Finding-specific detail, e.g. which feature gate.
     pub detail: Option<String>,
     pub note: Option<String>,
-    pub fix: Option<Edit>,
+    pub fix: Option<Fix>,
 }
 
 #[derive(Clone)]
+pub struct Fix {
+    /// Needs `--dangerous`: may change behavior or break the build.
+    pub dangerous: bool,
+    pub edits: Vec<Edit>,
+}
+
+/// Replace `old` at bytes `start..end` of `path` with `new`.
+#[derive(Clone, Debug)]
 pub struct Edit {
     pub path: PathBuf,
-    pub line: usize,
-    /// 0-based, in chars.
-    pub col: usize,
+    pub start: usize,
+    pub end: usize,
     pub old: String,
     pub new: String,
 }
 
-struct Active<'r> {
-    rule: &'r Rule,
-    note: Option<String>,
-    beta: bool,
+pub(crate) struct Active<'r> {
+    pub rule: &'r Rule,
+    pub note: Option<String>,
+    pub beta: bool,
 }
 
 /// A raw match before levels are resolved.
-struct Hit {
-    rule: usize,
-    file: PathBuf,
-    line: usize,
-    col: usize,
-    snippet: String,
-    detail: Option<String>,
-    note: Option<String>,
-    beta: bool,
-    fix: Option<Edit>,
+pub(crate) struct Hit {
+    pub rule: usize,
+    pub file: PathBuf,
+    pub start: LineColumn,
+    pub end: LineColumn,
+    pub source_line: String,
+    pub detail: Option<String>,
+    pub note: Option<String>,
+    pub beta: bool,
+    pub edits: Option<Vec<Edit>>,
 }
 
 pub struct Context<'a> {
@@ -132,6 +148,7 @@ pub fn analyze(pkg: &Package, cx: &Context) -> Result<PackageReport> {
         let mut uses = UseCollector::default();
         uses.visit_file(&ast);
         let mut s = Scanner::new(&active, &root_map, &file, &text, uses.leaves, pkg, cx.rustc);
+        s.collect_enums(&ast);
         s.visit_file(&ast);
         hits.extend(s.out);
     }
@@ -147,16 +164,24 @@ pub fn analyze(pkg: &Package, cx: &Context) -> Result<PackageReport> {
             if h.beta && level > Level::Suggest {
                 level = Level::Suggest; // can't act on it with a stable toolchain yet
             }
+            // A fix that needs a newer Rust than the crate declares raises its MSRV: dangerous.
+            let fix = h.edits.filter(|e| !e.is_empty() && !h.beta).map(|edits| Fix {
+                dangerous: a.rule.fix == FixSafety::Dangerous || h.note.as_deref().is_some_and(|n| n.contains("rust-version")),
+                edits,
+            });
             (level != Level::Off).then(|| Finding {
                 rule: a.rule.clone(),
                 level,
                 file: h.file.strip_prefix(cx.ws_root).unwrap_or(&h.file).to_path_buf(),
-                line: h.line,
-                column: h.col + 1,
-                snippet: h.snippet,
+                line: h.start.line,
+                column: h.start.column + 1,
+                end_line: h.end.line,
+                end_column: h.end.column + 1,
+                snippet: h.source_line.trim().to_owned(),
+                source_line: h.source_line,
                 detail: h.detail,
                 note: h.note,
-                fix: h.fix,
+                fix,
             })
         })
         .collect();
@@ -187,44 +212,67 @@ fn source_files(root: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+/// Byte offset of a (1-based line, 0-based char column) position.
+pub(crate) fn byte_offset(text: &str, line_starts: &[usize], lc: LineColumn) -> usize {
+    let Some(&ls) = line_starts.get(lc.line.saturating_sub(1)) else { return text.len() };
+    text[ls..].char_indices().nth(lc.column).map_or(text.len(), |(b, _)| ls + b)
+}
+
+pub(crate) fn line_starts(text: &str) -> Vec<usize> {
+    std::iter::once(0).chain(text.match_indices('\n').map(|(i, _)| i + 1)).collect()
+}
+
+fn lc(line: usize, column: usize) -> LineColumn {
+    LineColumn { line, column }
+}
+
 // ---------------------------------------------------------------- Cargo.toml
+
+fn manifest_line_hit(a: &Active, rule: usize, file: &Path, lines: &[String], idx: usize, edits: Option<Vec<Edit>>, detail: Option<String>) -> Hit {
+    let line = lines.get(idx).cloned().unwrap_or_default();
+    let indent = line.len() - line.trim_start().len();
+    Hit {
+        rule,
+        file: file.to_path_buf(),
+        start: lc(idx + 1, indent),
+        end: lc(idx + 1, line.trim_end().chars().count()),
+        source_line: line,
+        detail,
+        note: a.note.clone(),
+        beta: a.beta,
+        edits,
+    }
+}
 
 fn manifest_hits(pkg: &Package, active: &[Active]) -> Vec<Hit> {
     let mut out = Vec::new();
     let text = std::fs::read_to_string(&pkg.manifest_path).unwrap_or_default();
     for (i, a) in active.iter().enumerate() {
-        let hit = |file: &Path, line: usize, snippet: &str, fix| Hit {
-            rule: i,
-            file: file.to_path_buf(),
-            line: line + 1,
-            col: 0,
-            snippet: snippet.trim().to_owned(),
-            detail: None,
-            note: a.note.clone(),
-            beta: a.beta,
-            fix,
-        };
         match a.rule.kind {
             Kind::Dependency => {
                 let dep = pkg.dep(a.rule.krate.as_deref().unwrap()).unwrap();
                 let Some((mut path, mut lines, mut idx)) = locate_dep(&pkg.manifest_path, &text, dep.key()) else { continue };
+                let mut file_text = text.clone();
                 // `dep = { workspace = true }`: the version lives in the workspace manifest.
                 if lines[idx].contains("workspace") && pkg.workspace_manifest != pkg.manifest_path {
                     let root_text = std::fs::read_to_string(&pkg.workspace_manifest).unwrap_or_default();
                     if let Some(found) = locate_dep(&pkg.workspace_manifest, &root_text, dep.key()) {
                         (path, lines, idx) = found;
+                        file_text = root_text;
                     }
                 }
-                let fix = a.rule.to_version.as_ref().and_then(|new| {
+                let edits = a.rule.to_version.as_ref().and_then(|new| {
                     let (line, col, old) = version_string(&lines, idx)?;
-                    (old != *new).then(|| Edit { path: path.clone(), line: line + 1, col, old, new: new.clone() })
+                    let starts = line_starts(&file_text);
+                    let start = byte_offset(&file_text, &starts, lc(line + 1, col));
+                    (old != *new).then(|| vec![Edit { path: path.clone(), start, end: start + old.len(), old, new: new.clone() }])
                 });
-                out.push(hit(&path, idx, &lines[idx], fix));
+                out.push(manifest_line_hit(a, i, &path, &lines, idx, edits, None));
             }
             Kind::Edition => {
-                let lines: Vec<&str> = text.lines().collect();
+                let lines: Vec<String> = text.lines().map(str::to_owned).collect();
                 let idx = lines.iter().position(|l| l.trim_start().starts_with("edition")).unwrap_or(0);
-                out.push(hit(&pkg.manifest_path, idx, lines.get(idx).copied().unwrap_or(""), None));
+                out.push(manifest_line_hit(a, i, &pkg.manifest_path, &lines, idx, None, None));
             }
             _ => {}
         }
@@ -241,17 +289,6 @@ fn ecosystem_hits(pkg: &Package, cx: &Context, active: &[Active]) -> Vec<Hit> {
     let text = std::fs::read_to_string(&pkg.manifest_path).unwrap_or_default();
     let mut out = Vec::new();
     let mut seen = HashSet::new();
-    let hit = |rule: usize, file: &Path, line: usize, snippet: &str, detail: String| Hit {
-        rule,
-        file: file.to_path_buf(),
-        line: line + 1,
-        col: 0,
-        snippet: snippet.trim().to_owned(),
-        detail: Some(detail),
-        note: active[rule].note.clone(),
-        beta: false,
-        fix: None,
-    };
 
     for dep in &pkg.deps {
         if covered.contains(dep.name.as_str()) || !seen.insert(dep.name.as_str()) {
@@ -261,7 +298,7 @@ fn ecosystem_hits(pkg: &Package, cx: &Context, active: &[Active]) -> Vec<Hit> {
         let Some((path, lines, idx)) = locate_dep(&pkg.manifest_path, &text, dep.key()) else { continue };
         if let Some(status) = entry.status.as_deref() {
             if let Some(r) = rule_for(status) {
-                out.push(hit(r, &path, idx, &lines[idx], entry.advice()));
+                out.push(manifest_line_hit(&active[r], r, &path, &lines, idx, None, Some(entry.advice())));
             }
             continue;
         }
@@ -270,7 +307,8 @@ fn ecosystem_hits(pkg: &Package, cx: &Context, active: &[Active]) -> Vec<Hit> {
         let compatible = semver::VersionReq::parse(&format!("^{current}")).is_ok_and(|req| req.matches(&latest));
         if latest > current && latest.pre.is_empty() && !compatible {
             if let Some(r) = rule_for("outdated") {
-                out.push(hit(r, &path, idx, &lines[idx], format!("On {current}; the latest release is {latest}.")));
+                let detail = format!("On {current}; the latest release is {latest}.");
+                out.push(manifest_line_hit(&active[r], r, &path, &lines, idx, None, Some(detail)));
             }
         }
     }
@@ -281,7 +319,7 @@ fn ecosystem_hits(pkg: &Package, cx: &Context, active: &[Active]) -> Vec<Hit> {
     };
     let lock_path = cx.ws_root.join("Cargo.lock");
     let lock_text = std::fs::read_to_string(&lock_path).unwrap_or_default();
-    let lock_lines: Vec<&str> = lock_text.lines().collect();
+    let lock_lines: Vec<String> = lock_text.lines().map(str::to_owned).collect();
     let find = |spec: &str| -> Option<&LockPkg> {
         let mut parts = spec.split(' ');
         let (name, version) = (parts.next()?, parts.next());
@@ -319,9 +357,9 @@ fn ecosystem_hits(pkg: &Package, cx: &Context, active: &[Active]) -> Vec<Hit> {
         chain.reverse();
         let line = lock_lines.iter().position(|l| *l == format!("name = \"{name}\"")).unwrap_or(0);
         let detail = format!("`{name}` is {status}; pulled in via {}. {}", chain.join(" → "), entry.advice());
-        out.push(hit(r, &lock_path, line, lock_lines.get(line).copied().unwrap_or(""), detail));
+        out.push(manifest_line_hit(&active[r], r, &lock_path, &lock_lines, line, None, Some(detail)));
     }
-    out.sort_by_key(|h| (h.file.clone(), h.line));
+    out.sort_by_key(|h| (h.file.clone(), h.start.line));
     out
 }
 
@@ -378,13 +416,15 @@ fn version_string(lines: &[String], idx: usize) -> Option<(usize, usize, String)
 
 // ---------------------------------------------------------------- source
 
-type Seg = (String, Span);
+pub(crate) type Seg = (String, Span);
 
-struct UseLeaf {
+pub(crate) struct UseLeaf {
     segs: Vec<Seg>,
     alias: Option<String>,
     glob: bool,
     leading_colon: bool,
+    /// The whole `use …;` item, when this leaf is its only import.
+    sole_item: Option<(LineColumn, LineColumn)>,
 }
 
 #[derive(Default)]
@@ -394,12 +434,17 @@ struct UseCollector {
 
 impl<'ast> Visit<'ast> for UseCollector {
     fn visit_item_use(&mut self, u: &'ast syn::ItemUse) {
+        let before = self.leaves.len();
         flatten(&u.tree, Vec::new(), u.leading_colon.is_some(), &mut self.leaves);
+        if self.leaves.len() == before + 1 {
+            self.leaves[before].sole_item = Some((u.span().start(), u.span().end()));
+        }
     }
 }
 
 fn flatten(tree: &syn::UseTree, mut prefix: Vec<Seg>, lc: bool, out: &mut Vec<UseLeaf>) {
     use syn::UseTree::*;
+    let leaf = |segs, alias, glob| UseLeaf { segs, alias, glob, leading_colon: lc, sole_item: None };
     match tree {
         Path(p) => {
             prefix.push((p.ident.unraw().to_string(), p.ident.span()));
@@ -407,36 +452,54 @@ fn flatten(tree: &syn::UseTree, mut prefix: Vec<Seg>, lc: bool, out: &mut Vec<Us
         }
         Name(n) if n.ident == "self" => {
             let alias = prefix.last().map(|s| s.0.clone());
-            out.push(UseLeaf { segs: prefix, alias, glob: false, leading_colon: lc });
+            out.push(leaf(prefix, alias, false));
         }
         Name(n) => {
             prefix.push((n.ident.unraw().to_string(), n.ident.span()));
-            let alias = Some(n.ident.unraw().to_string());
-            out.push(UseLeaf { segs: prefix, alias, glob: false, leading_colon: lc });
+            out.push(leaf(prefix, Some(n.ident.unraw().to_string()), false));
         }
         Rename(r) => {
             prefix.push((r.ident.unraw().to_string(), r.ident.span()));
             let alias = Some(r.rename.unraw().to_string()).filter(|a| a != "_");
-            out.push(UseLeaf { segs: prefix, alias, glob: false, leading_colon: lc });
+            out.push(leaf(prefix, alias, false));
         }
-        Glob(_) => out.push(UseLeaf { segs: prefix, alias: None, glob: true, leading_colon: lc }),
+        Glob(_) => out.push(leaf(prefix, None, true)),
         Group(g) => g.items.iter().for_each(|t| flatten(t, prefix.clone(), lc, out)),
     }
 }
 
-struct Scanner<'a> {
-    rules: &'a [Active<'a>],
+pub(crate) struct EnumInfo {
+    /// Where to insert `, Default` in an existing `#[derive(..)]`.
+    pub derive_close: Option<LineColumn>,
+    /// Start of the item (its first attribute or keyword), for inserting attributes.
+    pub start: LineColumn,
+    /// Variant name → where to insert `#[default] `.
+    pub variants: HashMap<String, LineColumn>,
+}
+
+pub(crate) struct Scanner<'a> {
+    pub rules: &'a [Active<'a>],
     root_map: &'a HashMap<String, String>,
     aliases: HashMap<String, Vec<String>>,
     /// Fully-resolved import paths (glob imports contribute their prefix).
     imports: Vec<Vec<String>>,
     uses: Vec<UseLeaf>,
-    path: &'a Path,
-    lines: Vec<&'a str>,
+    pub path: &'a Path,
+    pub text: &'a str,
+    pub line_starts: Vec<usize>,
     pkg: &'a Package,
     rustc: Option<&'a Version>,
-    out: Vec<Hit>,
+    pub out: Vec<Hit>,
     seen: HashSet<(String, usize, usize)>,
+    /// Fixes computed at a call site for the path inside it (keyed by rule and path position).
+    pending: HashMap<(usize, usize, usize), Vec<Edit>>,
+    /// Macro invocations used as method receivers (rewrites there need parentheses).
+    pub receivers: HashSet<(usize, usize)>,
+    /// Calls already rewritten by an enclosing expression.
+    pub handled: HashSet<(usize, usize)>,
+    pub enums: HashMap<String, EnumInfo>,
+    /// Where to add a `use`: after the last top-level `use`, or before the first item.
+    pub import_at: Option<(LineColumn, bool)>,
 }
 
 impl<'a> Scanner<'a> {
@@ -456,11 +519,17 @@ impl<'a> Scanner<'a> {
             imports: Vec::new(),
             uses: Vec::new(),
             path,
-            lines: text.lines().collect(),
+            text,
+            line_starts: line_starts(text),
             pkg,
             rustc,
             out: Vec::new(),
             seen: HashSet::new(),
+            pending: HashMap::new(),
+            receivers: HashSet::new(),
+            handled: HashSet::new(),
+            enums: HashMap::new(),
+            import_at: None,
         };
         for leaf in &uses {
             let names: Vec<String> = leaf.segs.iter().map(|s| s.0.clone()).collect();
@@ -476,6 +545,55 @@ impl<'a> Scanner<'a> {
         s.uses = uses;
         s
     }
+
+    // ------------------------------------------------------------ source text
+
+    pub fn off(&self, lc: LineColumn) -> usize {
+        byte_offset(self.text, &self.line_starts, lc)
+    }
+
+    pub fn src(&self, sp: Span) -> &'a str {
+        let (a, b) = (self.off(sp.start()), self.off(sp.end()));
+        &self.text[a.min(b)..b]
+    }
+
+    pub fn src_of(&self, node: &impl Spanned) -> &'a str {
+        self.src(node.span())
+    }
+
+    pub fn edit(&self, a: LineColumn, b: LineColumn, new: impl Into<String>) -> Edit {
+        let (start, end) = (self.off(a), self.off(b));
+        Edit { path: self.path.to_path_buf(), start, end, old: self.text[start..end].to_owned(), new: new.into() }
+    }
+
+    pub fn replace(&self, node: &impl Spanned, new: impl Into<String>) -> Edit {
+        let sp = node.span();
+        self.edit(sp.start(), sp.end(), new)
+    }
+
+    /// Deletes `a..b`, and the whole line(s) when nothing else is on them.
+    pub fn delete_lines(&self, a: LineColumn, b: LineColumn) -> Edit {
+        let (mut start, mut end) = (self.off(a), self.off(b));
+        let line_start = self.text[..start].rfind('\n').map_or(0, |i| i + 1);
+        let rest_end = self.text[end..].find('\n').map_or(self.text.len(), |i| end + i + 1);
+        if self.text[line_start..start].trim().is_empty() && self.text[end..rest_end].trim().is_empty() {
+            start = line_start;
+            end = rest_end;
+            // Don't leave two blank lines where the item was.
+            if self.text[..start].ends_with("\n\n") && self.text[end..].starts_with('\n') {
+                end += 1;
+            }
+        }
+        Edit { path: self.path.to_path_buf(), start, end, old: self.text[start..end].to_owned(), new: String::new() }
+    }
+
+    /// Indentation of the line containing `lc`.
+    pub fn indent_at(&self, lc: LineColumn) -> String {
+        let line = self.text[self.line_starts[lc.line - 1]..].lines().next().unwrap_or("");
+        line[..line.len() - line.trim_start().len()].to_owned()
+    }
+
+    // ------------------------------------------------------------ resolution
 
     fn map_root(&self, mut path: Vec<String>) -> Vec<String> {
         if let Some(real) = path.first().and_then(|f| self.root_map.get(f)) {
@@ -498,7 +616,23 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn resolve_expr_path(&self, e: &Expr) -> Option<Vec<String>> {
+    /// The name to write for `full` (e.g. `std::sync::LazyLock`), plus the edit that
+    /// imports it if needed. Falls back to the full path if the short name is taken.
+    pub fn import(&self, full: &str) -> (String, Option<Edit>) {
+        let short = full.rsplit("::").next().unwrap_or(full);
+        let want: Vec<String> = full.split("::").map(str::to_owned).collect();
+        match self.aliases.get(short) {
+            Some(existing) if *existing == want => (short.to_owned(), None),
+            Some(_) => (full.to_owned(), None),
+            None => match self.import_at {
+                Some((at, true)) => (short.to_owned(), Some(self.edit(at, at, format!("\nuse {full};")))),
+                Some((at, false)) => (short.to_owned(), Some(self.edit(at, at, format!("use {full};\n\n")))),
+                None => (full.to_owned(), None),
+            },
+        }
+    }
+
+    pub fn resolve_expr_path(&self, e: &Expr) -> Option<Vec<String>> {
         let Expr::Path(p) = e else { return None };
         self.resolve(&path_segs(&p.path), p.path.leading_colon.is_some()).map(|(r, _)| r)
     }
@@ -508,66 +642,95 @@ impl<'a> Scanner<'a> {
             || rule.import_segs.iter().any(|req| self.imports.iter().any(|imp| imp.starts_with(req)))
     }
 
-    fn hit(&mut self, idx: usize, at: Span, fix: Option<(Span, String)>, detail: Option<String>, note: Option<(Option<String>, bool)>) {
+    // ------------------------------------------------------------ hits
+
+    pub fn hit(&mut self, idx: usize, start: LineColumn, end: LineColumn, edits: Option<Vec<Edit>>, detail: Option<String>, note: Option<(Option<String>, bool)>) {
         let a = &self.rules[idx];
-        let start = at.start();
         if !self.seen.insert((a.rule.id.clone() + detail.as_deref().unwrap_or(""), start.line, start.column)) {
             return;
         }
-        let fix = match (&a.rule.rename, fix) {
-            (Some(new), Some((sp, old))) if old != *new => {
-                Some(Edit { path: self.path.to_path_buf(), line: sp.start().line, col: sp.start().column, old, new: new.clone() })
-            }
-            _ => None,
-        };
         let (note, beta) = note.unwrap_or((a.note.clone(), a.beta));
-        self.out.push(Hit {
-            rule: idx,
-            file: self.path.to_path_buf(),
-            line: start.line,
-            col: start.column,
-            snippet: self.lines.get(start.line.wrapping_sub(1)).map_or(String::new(), |l| l.trim().to_owned()),
-            detail,
-            note,
-            beta,
-            fix,
-        });
+        let source_line = self.text.lines().nth(start.line.wrapping_sub(1)).unwrap_or("").to_owned();
+        self.out.push(Hit { rule: idx, file: self.path.to_path_buf(), start, end, source_line, detail, note, beta, edits });
     }
 
-    fn indices(&self, pred: impl Fn(&Rule) -> bool) -> Vec<usize> {
+    pub fn indices(&self, pred: impl Fn(&Rule) -> bool) -> Vec<usize> {
         self.rules.iter().enumerate().filter(|(_, a)| pred(a.rule)).map(|(i, _)| i).collect()
     }
 
+    /// Is a pattern rule active (worth computing a rewrite for)?
+    pub fn wants(&self, name: &str) -> bool {
+        self.rules.iter().any(|a| a.rule.kind == Kind::Pattern && a.rule.pattern.as_deref() == Some(name) && self.import_ok(a.rule))
+    }
+
+    /// Reports a built-in structural pattern over `node`'s span, with an optional rewrite.
+    pub fn pattern(&mut self, name: &str, at: Span, edits: Option<Vec<Edit>>) {
+        for i in self.indices(|r| r.kind == Kind::Pattern && r.pattern.as_deref() == Some(name)) {
+            if self.import_ok(self.rules[i].rule) {
+                self.hit(i, at.start(), at.end(), edits.clone(), None, None);
+            }
+        }
+    }
+
     /// Matches a path against pattern-based rules of the given kinds.
-    fn check_path(&mut self, segs: &[Seg], leading_colon: bool, kinds: &[Kind]) {
+    fn check_path(&mut self, segs: &[Seg], leading_colon: bool, kinds: &[Kind], sole_use: Option<(LineColumn, LineColumn)>, in_use: bool) {
         let Some((resolved, offset)) = self.resolve(segs, leading_colon) else { return };
         for i in self.indices(|r| kinds.contains(&r.kind)) {
             let rule = self.rules[i].rule;
             let Some(pat) = rule.segs.iter().find(|p| resolved.starts_with(p)) else { continue };
             // The code segment the rule's last component lines up with. If it's hidden
             // inside an import alias, the `use` itself is reported (and fixed) instead.
-            let Some(seg) = usize::try_from(pat.len() as isize - 1 - offset).ok().and_then(|i| segs.get(i)) else {
-                continue;
-            };
-            let fix = (seg.0 == *pat.last().unwrap()).then(|| (seg.1, seg.0.clone()));
-            self.hit(i, seg.1, fix, None, None);
+            let Some(target) = usize::try_from(pat.len() as isize - 1 - offset).ok() else { continue };
+            let Some(seg) = segs.get(target) else { continue };
+            let last = pat.last().unwrap();
+            let spelled_fully = offset == 0 && segs.len() >= pat.len();
+            let mut edits = self.pending.remove(&(i, seg.1.start().line, seg.1.start().column));
+            if edits.is_none() {
+                edits = if let (true, Some((a, b))) = (rule.remove_use, sole_use) {
+                    Some(vec![self.delete_lines(a, b)])
+                } else if let Some(new) = &rule.replace_with {
+                    if spelled_fully {
+                        Some(vec![self.edit(segs[0].1.start(), segs[pat.len() - 1].1.end(), new.clone())])
+                    } else {
+                        let tail = new.rsplit("::").next().unwrap_or(new);
+                        (seg.0 == *last).then(|| vec![self.replace(&seg.1, tail)])
+                    }
+                } else if rule.drop_prefix && !in_use && spelled_fully && matches!(segs[0].0.as_str(), "std" | "core") && segs.len() >= 2 {
+                    let rest: Vec<&str> = segs[1..].iter().map(|s| s.0.as_str()).collect();
+                    Some(vec![self.edit(segs[0].1.start(), segs.last().unwrap().1.end(), rest.join("::"))])
+                } else {
+                    rule.rename.as_ref().filter(|_| seg.0 == *last).map(|new| vec![self.replace(&seg.1, new.clone())])
+                };
+            }
+            self.hit(i, seg.1.start(), seg.1.end(), edits, None, None);
         }
     }
 
     fn check_named(&mut self, name: &str, at: Span, kind: Kind) {
         for i in self.indices(|r| r.kind == kind && r.names.iter().any(|n| n == name)) {
-            if self.import_ok(self.rules[i].rule) {
-                self.hit(i, at, Some((at, name.to_owned())), None, None);
+            let rule = self.rules[i].rule;
+            if self.import_ok(rule) {
+                let new = rule.renames.get(name).or(rule.rename.as_ref()).filter(|n| *n != name).cloned();
+                let edits = new.map(|n| vec![self.replace(&at, n)]);
+                self.hit(i, at.start(), at.end(), edits, None, None);
             }
         }
     }
 
-    /// Reports a built-in structural pattern.
-    fn pattern(&mut self, name: &str, at: Span) {
-        for i in self.indices(|r| r.kind == Kind::Pattern && r.pattern.as_deref() == Some(name)) {
-            if self.import_ok(self.rules[i].rule) {
-                self.hit(i, at, None, None, None);
-            }
+    /// `replace_call` rules: rewrite a zero-argument call of a matching path.
+    fn check_call_replacements(&mut self, c: &syn::ExprCall) {
+        let Expr::Path(p) = &*c.func else { return };
+        if !c.args.is_empty() {
+            return;
+        }
+        let segs = path_segs(&p.path);
+        let Some((resolved, offset)) = self.resolve(&segs, p.path.leading_colon.is_some()) else { return };
+        for i in self.indices(|r| r.kind == Kind::Path && r.replace_call.is_some()) {
+            let rule = self.rules[i].rule;
+            let Some(pat) = rule.segs.iter().find(|pat| resolved.starts_with(pat) && resolved.len() == pat.len()) else { continue };
+            let Some(seg) = usize::try_from(pat.len() as isize - 1 - offset).ok().and_then(|t| segs.get(t)) else { continue };
+            let edit = self.replace(c, rule.replace_call.clone().unwrap());
+            self.pending.insert((i, seg.1.start().line, seg.1.start().column), vec![edit]);
         }
     }
 
@@ -580,18 +743,38 @@ impl<'a> Scanner<'a> {
             Ok(())
         });
         let msrv_str = self.pkg.rust_version_str();
+        let stable: Vec<(String, Span, String, &str, rules::Applies)> = names
+            .iter()
+            .filter_map(|(name, span)| {
+                let (since, area) = FEATURES.since(name)?;
+                let avail = rules::availability(since, self.rustc, self.pkg.rust_version.as_ref(), &msrv_str)?;
+                Some((name.clone(), *span, since.to_owned(), area, avail))
+            })
+            .collect();
+        // One rewrite for the whole attribute: drop the stable names (or the attribute).
+        let removable: Vec<&str> = stable.iter().filter(|s| !s.4.beta).map(|s| s.0.as_str()).collect();
+        let keep: Vec<&str> = names.iter().map(|n| n.0.as_str()).filter(|n| !removable.contains(n)).collect();
+        let attr_edit = (!removable.is_empty()).then(|| {
+            if keep.is_empty() {
+                self.delete_lines(attr.span().start(), attr.span().end())
+            } else {
+                self.replace(attr, format!("#![feature({})]", keep.join(", ")))
+            }
+        });
         for i in self.indices(|r| r.kind == Kind::FeatureGate) {
-            for (name, span) in &names {
-                let Some((since, area)) = FEATURES.since(name) else { continue };
-                let Some(avail) = rules::availability(since, self.rustc, self.pkg.rust_version.as_ref(), &msrv_str) else { continue };
+            for (k, (name, span, since, area, avail)) in stable.iter().enumerate() {
                 let detail = format!("`{name}` ({area} feature) is stable since Rust {since}");
-                self.hit(i, *span, None, Some(detail), Some((avail.note, avail.beta)));
+                // Attach the attribute rewrite to the first removable gate only.
+                let edits = (!avail.beta && removable.first() == Some(&name.as_str()) && k == stable.iter().position(|s| !s.4.beta).unwrap_or(usize::MAX))
+                    .then(|| attr_edit.clone().map(|e| vec![e]))
+                    .flatten();
+                self.hit(i, span.start(), span.end(), edits, Some(detail), Some((avail.note.clone(), avail.beta)));
             }
         }
     }
 }
 
-fn path_segs(p: &syn::Path) -> Vec<Seg> {
+pub(crate) fn path_segs(p: &syn::Path) -> Vec<Seg> {
     p.segments.iter().map(|s| (s.ident.unraw().to_string(), s.ident.span())).collect()
 }
 
@@ -600,14 +783,14 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         // Each `use` was flattened up front; check them once, in order.
         for leaf in std::mem::take(&mut self.uses) {
             if !leaf.glob {
-                self.check_path(&leaf.segs, leaf.leading_colon, &[Kind::Path, Kind::Macro, Kind::Attribute]);
+                self.check_path(&leaf.segs, leaf.leading_colon, &[Kind::Path, Kind::Macro, Kind::Attribute], leaf.sole_item, true);
             }
         }
     }
 
     fn visit_path(&mut self, p: &'ast syn::Path) {
         let segs = path_segs(p);
-        self.check_path(&segs, p.leading_colon.is_some(), &[Kind::Path]);
+        self.check_path(&segs, p.leading_colon.is_some(), &[Kind::Path], None, false);
         // `Type::method(..)` calls count for method rules too.
         if segs.len() >= 2 {
             let last = segs.last().unwrap();
@@ -619,117 +802,47 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
     fn visit_expr_method_call(&mut self, m: &'ast syn::ExprMethodCall) {
         let name = m.method.unraw().to_string();
         self.check_named(&name, m.method.span(), Kind::Method);
-        let at = m.method.span();
-        match (name.as_str(), m.args.len()) {
-            ("map_or", 2) => match &m.args[0] {
-                Expr::Lit(l) if matches!(&l.lit, Lit::Bool(b) if !b.value) => self.pattern("is-some-and", at),
-                Expr::Lit(l) if matches!(&l.lit, Lit::Bool(b) if b.value) => self.pattern("is-none-or", at),
-                _ => {}
-            },
-            ("splitn", 2) if is_int(&m.args[0], 2) => self.pattern("split-once", at),
-            ("map", 1) if is_as_ref_map(m) => self.pattern("as-deref", at),
-            ("unwrap_or", 1) => {
-                if let Expr::MethodCall(inner) = &*m.receiver {
-                    if matches!(inner.method.to_string().as_str(), "strip_prefix" | "strip_suffix") && tokens(&m.args[0]) == tokens(&inner.receiver) {
-                        self.pattern("trim-prefix", at);
-                    }
-                }
-            }
-            ("into_owned" | "to_string", 0) => {
-                if let Expr::Call(c) = &*m.receiver {
-                    if path_ends_with(&c.func, &["String", "from_utf8_lossy"]) {
-                        self.pattern("lossy-owned", at);
-                    }
-                }
-            }
-            ("collect", 0) if is_zero_range_map(&m.receiver) && collects_vec_or_unknown(m) => self.pattern("vec-from-fn", at),
-            ("with", 1) if is_cell_set_get(&m.args[0]) => self.pattern("local-key-update", at),
-            _ => {}
+        if let Expr::Macro(mac) = &*m.receiver {
+            let s = mac.span().start();
+            self.receivers.insert((s.line, s.column));
         }
+        self.method_patterns(m, &name);
         visit::visit_expr_method_call(self, m);
     }
 
     fn visit_expr_call(&mut self, c: &'ast syn::ExprCall) {
-        if let Some(f) = self.resolve_expr_path(&c.func) {
-            let f: Vec<&str> = f.iter().map(String::as_str).collect();
-            if matches!(f.as_slice(), ["std", "io", "Error", "new"]) && c.args.first().is_some_and(|a| path_ends_with(a, &["Other"])) {
-                self.pattern("io-error-other", c.func.span());
-            }
-            if matches!(f.as_slice(), ["std" | "core", "mem", "replace"]) && c.args.len() == 2 && is_default_value(&c.args[1]) {
-                self.pattern("mem-take", c.func.span());
-            }
-        }
+        self.check_call_replacements(c);
+        self.call_patterns(c);
         visit::visit_expr_call(self, c);
     }
 
     fn visit_local(&mut self, l: &'ast syn::Local) {
-        if let Some(init) = l.init.as_ref().filter(|i| i.diverge.is_none()) {
-            let let_else = match &*init.expr {
-                Expr::Match(m) => is_unwrap_or_diverge_match(m),
-                Expr::If(i) => is_unwrap_or_diverge_if(i),
-                _ => false,
-            };
-            if let_else {
-                self.pattern("let-else", l.let_token.span);
-            }
-        }
+        self.local_patterns(l);
         visit::visit_local(self, l);
     }
 
     fn visit_expr_match(&mut self, m: &'ast syn::ExprMatch) {
-        let bools: Vec<bool> = m.arms.iter().filter_map(|a| bool_lit(&a.body)).collect();
-        if m.arms.len() >= 2
-            && bools.len() == m.arms.len()
-            && matches!(m.arms.last().unwrap().pat, Pat::Wild(_))
-            && bools.iter().any(|b| *b != bools[0])
-        {
-            self.pattern("matches-macro", m.match_token.span);
-        }
+        self.match_patterns(m);
         visit::visit_expr_match(self, m);
     }
 
     fn visit_expr_if(&mut self, i: &'ast syn::ExprIf) {
-        if let Some((_, els)) = &i.else_branch {
-            if single_expr(&i.then_branch).is_some_and(is_ok_unit) && block_expr(els).is_some_and(|e| call_named(e, "Err")) {
-                self.pattern("bool-ok-or", i.if_token.span);
-            }
-        } else if matches!(*i.cond, Expr::Let(_)) {
-            if let [Stmt::Expr(Expr::If(inner), _)] = i.then_branch.stmts.as_slice() {
-                if inner.else_branch.is_none() {
-                    self.pattern("let-chains", i.if_token.span);
-                }
-            }
-        }
+        self.if_patterns(i);
         visit::visit_expr_if(self, i);
     }
 
     fn visit_expr_assign(&mut self, a: &'ast syn::ExprAssign) {
-        if let Expr::Unary(u) = &*a.right {
-            if matches!(u.op, syn::UnOp::Not(_)) && tokens(&u.expr) == tokens(&a.left) {
-                self.pattern("bool-toggle", a.eq_token.span);
-            }
-        }
+        self.assign_patterns(a);
         visit::visit_expr_assign(self, a);
     }
 
     fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl) {
-        let is_default = i.trait_.as_ref().is_some_and(|(_, p, _)| p.segments.last().is_some_and(|s| s.ident == "Default"));
-        if is_default {
-            if let [syn::ImplItem::Fn(f)] = i.items.as_slice() {
-                if matches!(single_expr(&f.block), Some(Expr::Path(p)) if p.path.segments.len() >= 2) {
-                    self.pattern("derive-default-enum", i.impl_token.span);
-                }
-            }
-        }
+        self.impl_patterns(i);
         visit::visit_item_impl(self, i);
     }
 
     fn visit_item_enum(&mut self, e: &'ast syn::ItemEnum) {
-        for v in &e.variants {
-            if v.ident.to_string().starts_with("__") {
-                self.pattern("non-exhaustive", v.ident.span());
-            }
-        }
+        self.enum_patterns(e);
         visit::visit_item_enum(self, e);
     }
 
@@ -737,7 +850,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         for item in &t.items {
             if let syn::TraitItem::Fn(f) = item {
                 if matches!(f.sig.ident.to_string().as_str(), "as_any" | "as_any_mut") {
-                    self.pattern("trait-upcasting", f.sig.ident.span());
+                    self.pattern("trait-upcasting", f.sig.ident.span(), None);
                 }
             }
         }
@@ -749,15 +862,11 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         if let Some(last) = segs.last() {
             self.check_named(&last.0.clone(), last.1, Kind::Macro);
         }
-        self.check_path(&segs, mac.path.leading_colon.is_some(), &[Kind::Macro]);
+        self.check_path(&segs, mac.path.leading_colon.is_some(), &[Kind::Macro], None, false);
+        self.macro_patterns(mac, segs.last().map(|s| s.0.as_str()).unwrap_or(""));
         visit::visit_macro(self, mac);
         // syn leaves macro bodies as tokens; look inside the common shapes.
         if let Ok(args) = mac.parse_body_with(Punctuated::<Expr, syn::Token![,]>::parse_terminated) {
-            if let Some(name) = segs.last().map(|s| s.0.as_str()) {
-                if has_uninlined_format_args(name, &args) {
-                    self.pattern("inline-format-args", mac.path.span());
-                }
-            }
             args.iter().for_each(|e| self.visit_expr(e));
         } else if let Ok(stmts) = mac.parse_body_with(syn::Block::parse_within) {
             stmts.iter().for_each(|s| self.visit_stmt(s));
@@ -769,7 +878,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         if let Some(last) = segs.last() {
             self.check_named(&last.0.clone(), last.1, Kind::Attribute);
         }
-        self.check_path(&segs, false, &[Kind::Attribute]);
+        self.check_path(&segs, false, &[Kind::Attribute], None, false);
         if attr.path().is_ident("derive") {
             let mut derived = Vec::new();
             let _ = attr.parse_nested_meta(|m| {
@@ -777,7 +886,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
                 Ok(())
             });
             for p in &derived {
-                self.check_path(&path_segs(p), p.leading_colon.is_some(), &[Kind::Path]);
+                self.check_path(&path_segs(p), p.leading_colon.is_some(), &[Kind::Path], None, false);
             }
         }
         if matches!(attr.style, syn::AttrStyle::Inner(_)) && attr.path().is_ident("feature") {
@@ -788,230 +897,25 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
 
     fn visit_item_extern_crate(&mut self, ec: &'ast syn::ItemExternCrate) {
         let name = ec.ident.unraw().to_string();
+        // Removable when nothing depends on the item itself: no `#[macro_use]`, no `as` rename.
+        let removable = ec.attrs.iter().all(|a| !a.path().is_ident("macro_use")) && ec.rename.is_none();
+        let edits = removable.then(|| vec![self.delete_lines(ec.span().start(), ec.span().end())]);
         for i in self.indices(|r| r.kind == Kind::ExternCrate && !r.exclude.contains(&name)) {
-            self.hit(i, ec.extern_token.span(), None, None, None);
+            self.hit(i, ec.extern_token.span().start(), ec.semi_token.span().end(), edits.clone(), None, None);
         }
         visit::visit_item_extern_crate(self, ec);
     }
 }
 
-// ---------------------------------------------------------------- pattern helpers
-
-fn tokens(e: &impl ToTokens) -> String {
-    e.to_token_stream().to_string()
+/// Is `e` a plain identifier, `a.b`, a call, or another form that binds tighter than
+/// any binary operator (safe to use as a method receiver without parentheses)?
+pub(crate) fn is_tight(e: &Expr) -> bool {
+    matches!(
+        e,
+        Expr::Path(_) | Expr::MethodCall(_) | Expr::Call(_) | Expr::Field(_) | Expr::Paren(_) | Expr::Lit(_) | Expr::Index(_) | Expr::Macro(_) | Expr::Tuple(_)
+    )
 }
 
-fn strip_parens(e: &Expr) -> &Expr {
-    match e {
-        Expr::Paren(p) => strip_parens(&p.expr),
-        e => e,
-    }
-}
-
-fn is_int(e: &Expr, n: u64) -> bool {
+pub(crate) fn is_int(e: &Expr, n: u64) -> bool {
     matches!(e, Expr::Lit(l) if matches!(&l.lit, Lit::Int(i) if i.base10_parse::<u64>().ok() == Some(n)))
-}
-
-fn bool_lit(e: &Expr) -> Option<bool> {
-    match e {
-        Expr::Lit(l) => match &l.lit {
-            Lit::Bool(b) => Some(b.value),
-            _ => None,
-        },
-        Expr::Block(b) => single_expr(&b.block).and_then(bool_lit),
-        _ => None,
-    }
-}
-
-fn path_ends_with(e: &Expr, tail: &[&str]) -> bool {
-    let Expr::Path(p) = e else { return false };
-    let segs: Vec<String> = p.path.segments.iter().map(|s| s.ident.to_string()).collect();
-    segs.len() >= tail.len() && segs[segs.len() - tail.len()..].iter().zip(tail).all(|(a, b)| a == b)
-}
-
-/// The block's only content, if it is a single tail expression.
-fn single_expr(b: &syn::Block) -> Option<&Expr> {
-    match b.stmts.as_slice() {
-        [Stmt::Expr(e, None)] => Some(e),
-        _ => None,
-    }
-}
-
-fn block_expr(e: &Expr) -> Option<&Expr> {
-    match e {
-        Expr::Block(b) => single_expr(&b.block),
-        _ => None,
-    }
-}
-
-fn call_named(e: &Expr, name: &str) -> bool {
-    matches!(e, Expr::Call(c) if c.args.len() == 1 && path_ends_with(&c.func, &[name]))
-}
-
-fn is_ok_unit(e: &Expr) -> bool {
-    matches!(e, Expr::Call(c) if path_ends_with(&c.func, &["Ok"]) && matches!(c.args.first(), Some(Expr::Tuple(t)) if t.elems.is_empty()))
-}
-
-fn is_diverging(e: &Expr) -> bool {
-    match e {
-        Expr::Return(_) | Expr::Continue(_) | Expr::Break(_) => true,
-        Expr::Macro(m) => is_diverging_macro(&m.mac),
-        Expr::Block(b) => block_diverges(&b.block),
-        _ => false,
-    }
-}
-
-fn is_diverging_macro(m: &syn::Macro) -> bool {
-    m.path.segments.last().is_some_and(|s| matches!(s.ident.to_string().as_str(), "panic" | "unreachable" | "todo" | "unimplemented" | "bail"))
-}
-
-fn block_diverges(b: &syn::Block) -> bool {
-    match b.stmts.last() {
-        Some(Stmt::Expr(e, _)) => is_diverging(e),
-        Some(Stmt::Macro(m)) => is_diverging_macro(&m.mac),
-        _ => false,
-    }
-}
-
-fn bindings(p: &Pat, out: &mut Vec<String>) {
-    match p {
-        // `None`, `FOO`: syn can't tell a unit variant/constant from a binding; go by case.
-        Pat::Ident(i) if i.subpat.is_none() && i.ident.to_string().starts_with(char::is_uppercase) => {}
-        Pat::Ident(i) => {
-            out.push(i.ident.to_string());
-            if let Some((_, sub)) = &i.subpat {
-                bindings(sub, out);
-            }
-        }
-        Pat::TupleStruct(t) => t.elems.iter().for_each(|e| bindings(e, out)),
-        Pat::Tuple(t) => t.elems.iter().for_each(|e| bindings(e, out)),
-        Pat::Struct(s) => s.fields.iter().for_each(|f| bindings(&f.pat, out)),
-        Pat::Reference(r) => bindings(&r.pat, out),
-        _ => {}
-    }
-}
-
-/// The arm/branch produces exactly the one variable its pattern binds.
-fn yields_binding(pat: &Pat, body: &Expr) -> bool {
-    let mut names = Vec::new();
-    bindings(pat, &mut names);
-    let body = block_expr(body).unwrap_or(body);
-    matches!((names.as_slice(), body), ([n], Expr::Path(p)) if p.path.is_ident(n))
-}
-
-/// The `else` of a let-else can't see anything the failing pattern binds.
-fn binds_nothing(p: &Pat) -> bool {
-    let mut names = Vec::new();
-    bindings(p, &mut names);
-    names.is_empty()
-}
-
-/// `let x = match e { Some(x) => x, None => return };`
-/// Not `Err(e) => return Err(e.into())`: let-else's `else` can't use `e`.
-fn is_unwrap_or_diverge_match(m: &syn::ExprMatch) -> bool {
-    let [a, b] = m.arms.as_slice() else { return false };
-    if a.guard.is_some() || b.guard.is_some() {
-        return false;
-    }
-    let ok = |keep: &syn::Arm, bail: &syn::Arm| yields_binding(&keep.pat, &keep.body) && binds_nothing(&bail.pat) && is_diverging(&bail.body);
-    ok(a, b) || ok(b, a)
-}
-
-/// `let x = if let Some(x) = e { x } else { return };`
-fn is_unwrap_or_diverge_if(i: &syn::ExprIf) -> bool {
-    let (Expr::Let(l), Some((_, els))) = (&*i.cond, &i.else_branch) else { return false };
-    single_expr(&i.then_branch).is_some_and(|e| yields_binding(&l.pat, e)) && is_diverging(els)
-}
-
-/// `x.as_ref().map(|s| s.as_str())` or `.map(String::as_str)`
-fn is_as_ref_map(m: &syn::ExprMethodCall) -> bool {
-    let Expr::MethodCall(inner) = &*m.receiver else { return false };
-    if inner.method != "as_ref" || !inner.args.is_empty() {
-        return false;
-    }
-    const DEREFS: [&str; 4] = ["as_str", "as_slice", "as_path", "as_os_str"];
-    match &m.args[0] {
-        Expr::Path(p) => p.path.segments.last().is_some_and(|s| DEREFS.contains(&s.ident.to_string().as_str())),
-        Expr::Closure(c) => match (c.inputs.first(), strip_parens(&c.body)) {
-            (Some(Pat::Ident(param)), Expr::MethodCall(call)) => {
-                call.args.is_empty() && DEREFS.contains(&call.method.to_string().as_str()) && matches!(&*call.receiver, Expr::Path(p) if p.path.is_ident(&param.ident))
-            }
-            _ => false,
-        },
-        _ => false,
-    }
-}
-
-/// `(0..n).map(f).collect()`
-fn is_zero_range_map(e: &Expr) -> bool {
-    let Expr::MethodCall(map) = e else { return false };
-    map.method == "map"
-        && matches!(strip_parens(&map.receiver), Expr::Range(r)
-            if matches!(r.limits, syn::RangeLimits::HalfOpen(_)) && r.end.is_some() && r.start.as_deref().is_some_and(|s| is_int(s, 0)))
-}
-
-/// `collect()` or `collect::<Vec<_>>()`, not `collect::<String>()` etc.
-fn collects_vec_or_unknown(m: &syn::ExprMethodCall) -> bool {
-    m.turbofish.as_ref().is_none_or(|t| {
-        matches!(t.args.first(), Some(syn::GenericArgument::Type(syn::Type::Path(p))) if p.path.segments.last().is_some_and(|s| s.ident == "Vec"))
-    })
-}
-
-/// `KEY.with(|c| c.set(c.get() + 1))`
-fn is_cell_set_get(e: &Expr) -> bool {
-    let Expr::Closure(c) = e else { return false };
-    let (Some(Pat::Ident(p)), body) = (c.inputs.first(), strip_parens(&c.body)) else { return false };
-    let body = block_expr(body).unwrap_or(body);
-    let Expr::MethodCall(set) = body else { return false };
-    set.method == "set"
-        && matches!(&*set.receiver, Expr::Path(r) if r.path.is_ident(&p.ident))
-        && set.args.first().is_some_and(|a| tokens(a).contains(&format!("{} . get ()", p.ident)))
-}
-
-/// `Default::default()`, `T::default()`, `Vec::new()`, `String::new()`, …
-fn is_default_value(e: &Expr) -> bool {
-    const EMPTY: [&str; 7] = ["Vec", "String", "HashMap", "HashSet", "BTreeMap", "BTreeSet", "VecDeque"];
-    let Expr::Call(c) = e else { return false };
-    let Expr::Path(p) = &*c.func else { return false };
-    let segs: Vec<String> = p.path.segments.iter().map(|s| s.ident.to_string()).collect();
-    c.args.is_empty()
-        && match segs.as_slice() {
-            [.., last] if last == "default" => true,
-            [.., ty, last] if last == "new" => EMPTY.contains(&ty.as_str()),
-            _ => false,
-        }
-}
-
-/// `println!("{}", x)` where an implicit `{}` is fed a plain identifier.
-fn has_uninlined_format_args(mac: &str, args: &Punctuated<Expr, syn::Token![,]>) -> bool {
-    let fmt_index = match mac {
-        "write" | "writeln" => 1,
-        "format" | "print" | "println" | "eprint" | "eprintln" | "panic" | "format_args" | "unreachable" | "todo"
-        | "unimplemented" | "bail" | "anyhow" | "info" | "warn" | "error" | "debug" | "trace" => 0,
-        _ => return false,
-    };
-    let Some(Expr::Lit(syn::ExprLit { lit: Lit::Str(s), .. })) = args.iter().nth(fmt_index) else { return false };
-    let fmt = s.value();
-    let mut implicit = 0;
-    let mut chars = fmt.chars().peekable();
-    while let Some(c) = chars.next() {
-        match c {
-            '{' if chars.peek() == Some(&'{') => {
-                chars.next();
-            }
-            '{' => {
-                let spec: String = chars.by_ref().take_while(|&c| c != '}').collect();
-                if spec.is_empty() || spec.starts_with(':') {
-                    implicit += 1;
-                } else {
-                    return false; // already uses named/positional arguments
-                }
-            }
-            _ => {}
-        }
-    }
-    let rest: Vec<&Expr> = args.iter().skip(fmt_index + 1).collect();
-    implicit > 0
-        && rest.len() == implicit
-        && rest.iter().any(|e| matches!(e, Expr::Path(p) if p.qself.is_none() && p.path.get_ident().is_some()))
 }
