@@ -261,11 +261,9 @@ fn analyze(
         e.recent_downloads = Some(info.recent_downloads);
         for a in advs {
             for alt in &a.alternatives {
-                if let Alternative::Std(s) = alt {
-                    if !e.std_successors.contains(s) {
+                if let Alternative::Std(s) = alt && !e.std_successors.contains(s) {
                         e.std_successors.push(s.clone());
                     }
-                }
             }
         }
         e.successors = successors(http, gh, info, repo.as_ref(), advs, all_advisories, &age_days)?;
@@ -307,11 +305,9 @@ fn successors(
     // Forks of the original repository that publish a crate.
     if let Some(r) = orig_repo {
         for fork in gh.forks(&r.full_name).into_iter().filter(|f| f.stargazers_count >= 2).take(8) {
-            if let Some(name) = gh.published_name(&fork, &orig.name) {
-                if name != orig.name && sources::exists(http, &name)? {
+            if let Some(name) = gh.published_name(&fork, &orig.name) && name != orig.name && sources::exists(http, &name)? {
                     add(&mut why, &name, 2, format!("published from {}, a GitHub fork of {}", fork.full_name, r.full_name));
                 }
-            }
         }
     }
     // Conventional successor names: foo2, foo-ng, dotenvy, pastey, …
@@ -340,16 +336,12 @@ fn successors(
             continue; // don't recommend one unmaintained crate for another
         }
         // Repository and description evidence.
-        if let (Some(full), Some(orig_repo)) = (info.repository.as_deref().and_then(sources::github_full_name), orig_repo) {
-            if !reasons.iter().any(|r| r.contains("GitHub fork")) {
-                if let RepoLookup::Found(repo) = gh.repo(&full) {
-                    if repo.parent.as_ref().is_some_and(|p| p.full_name.eq_ignore_ascii_case(&orig_repo.full_name)) {
+        if let (Some(full), Some(orig_repo)) = (info.repository.as_deref().and_then(sources::github_full_name), orig_repo) && !reasons.iter().any(|r| r.contains("GitHub fork")) {
+                if let RepoLookup::Found(repo) = gh.repo(&full) && repo.parent.as_ref().is_some_and(|p| p.full_name.eq_ignore_ascii_case(&orig_repo.full_name)) {
                         score += 2;
                         reasons.push(format!("{full} is a GitHub fork of {}", orig_repo.full_name));
                     }
-                }
             }
-        }
         let desc = info.description.to_ascii_lowercase();
         let mentions = desc.contains(&orig.name.to_ascii_lowercase());
         if mentions && ["fork", "maintained", "continuation", "successor", "replacement", "drop-in"].iter().any(|w| desc.contains(w)) {

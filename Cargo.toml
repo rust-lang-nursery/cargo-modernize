@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["cargo-modernize", "modernize-battery-pack", "modernize-ecosystem"]
+members = ["cargo-modernize", "modernize-battery-pack", "modernize-ecosystem", "cargo-modernize-lsp"]
 exclude = ["cargo-modernize/tests/fixtures"]
 
 [workspace.package]
