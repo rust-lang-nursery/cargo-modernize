@@ -1,0 +1,12 @@
+[package]
+name = "modern"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+
+[dependencies]
+rand = "0.10"
+regex = "1"
+dice = { package = "rand", version = "0.10" }
+
+[workspace]

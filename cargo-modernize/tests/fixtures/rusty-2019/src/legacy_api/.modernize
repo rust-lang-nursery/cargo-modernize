@@ -1,0 +1,3 @@
+[rules]
+"rusty/*" = "off"
+"rusty/non-exhaustive" = "deny"

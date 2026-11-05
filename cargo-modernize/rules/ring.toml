@@ -1,0 +1,51 @@
+# ring 0.16 → 0.17, plus APIs deprecated in 0.17. Verified against ring 0.17.14 sources.
+[[rule]]
+id = "ring/upgrade"
+kind = "dependency"
+category = "upgrade"
+plan = "ring → 0.17"
+crate = "ring"
+version = "<0.17"
+to_version = "0.17"
+message = "ring 0.16 and earlier are unmaintained and don't build on many newer targets. 0.17 is the maintained line."
+
+[[rule]]
+id = "ring/ecdsa-rng-arg"
+kind = "path"
+category = "upgrade"
+plan = "ring → 0.17"
+crate = "ring"
+version = "<0.17"
+paths = ["ring::signature::EcdsaKeyPair::{from_pkcs8,from_private_key_and_public_key}"]
+message = "In ring 0.17, `EcdsaKeyPair::from_pkcs8` and `from_private_key_and_public_key` take a trailing `rng: &dyn SecureRandom` argument."
+suggestion = "EcdsaKeyPair::from_pkcs8(alg, pkcs8, &ring::rand::SystemRandom::new())"
+
+[[rule]]
+id = "ring/constant-time"
+kind = "path"
+category = "deprecated"
+plan = "ring: deprecated APIs"
+crate = "ring"
+paths = ["ring::constant_time", "ring::deprecated_constant_time"]
+message = "`ring::constant_time::verify_slices_are_equal` is a deprecated internal API that will be removed."
+suggestion = "use subtle::ConstantTimeEq; bool::from(a.ct_eq(b))"
+
+[[rule]]
+id = "ring/test-module"
+kind = "path"
+category = "deprecated"
+plan = "ring: deprecated APIs"
+crate = "ring"
+paths = ["ring::test", "ring::deprecated_test"]
+message = "`ring::test` is a deprecated internal API that will be removed. Vendor the test-vector parsing you need."
+
+[[rule]]
+id = "ring/public-modulus-len"
+kind = "method"
+category = "deprecated"
+plan = "ring: deprecated APIs"
+crate = "ring"
+names = ["public_modulus_len"]
+requires_import = ["ring"]
+message = "`RsaKeyPair::public_modulus_len()` is deprecated."
+suggestion = "key_pair.public().modulus_len()"

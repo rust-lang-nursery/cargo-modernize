@@ -1,0 +1,41 @@
+# chrono 0.4.x deprecations: the panicking constructors were replaced by `_opt`
+# variants, and the timestamp APIs moved to `DateTime`. Verified against the chrono 0.4 sources.
+[[rule]]
+id = "chrono/panicking-ctors"
+kind = "method"
+category = "deprecated"
+plan = "chrono: deprecated APIs"
+crate = "chrono"
+names = ["from_ymd", "from_yo", "from_isoywd", "from_hms", "from_hms_milli", "from_hms_micro", "from_hms_nano", "and_hms", "and_hms_milli", "and_hms_micro", "and_hms_nano", "from_num_days_from_ce", "from_weekday_of_month", "from_num_seconds_from_midnight", "succ", "pred"]
+requires_import = ["chrono"]
+message = "This panicking chrono constructor is deprecated. Use the `_opt` variant (e.g. `from_ymd_opt`, `and_hms_opt`), which returns `Option`."
+suggestion = "NaiveDate::from_ymd_opt(2024, 1, 31).expect(\"valid date\")"
+
+[[rule]]
+id = "chrono/timezone-ymd"
+kind = "method"
+category = "deprecated"
+plan = "chrono: deprecated APIs"
+crate = "chrono"
+names = ["ymd", "ymd_opt", "yo", "isoywd"]
+requires_import = ["chrono"]
+message = "`TimeZone::ymd` and the `Date<Tz>` type are deprecated."
+suggestion = "Utc.with_ymd_and_hms(2024, 1, 31, 0, 0, 0).unwrap()"
+
+[[rule]]
+id = "chrono/naive-from-timestamp"
+kind = "path"
+category = "deprecated"
+plan = "chrono: deprecated APIs"
+crate = "chrono"
+paths = ["chrono::{NaiveDateTime,naive::NaiveDateTime}::{from_timestamp,from_timestamp_opt,from_timestamp_millis,from_timestamp_micros,from_timestamp_nanos}"]
+message = "`NaiveDateTime::from_timestamp*` is deprecated. Use `DateTime::from_timestamp*` (returns `Option<DateTime<Utc>>`), and `.naive_utc()` if you need naive."
+
+[[rule]]
+id = "chrono/date-type"
+kind = "path"
+category = "deprecated"
+plan = "chrono: deprecated APIs"
+crate = "chrono"
+paths = ["chrono::Date"]
+message = "`chrono::Date<Tz>` is deprecated. Use `NaiveDate`, or `DateTime<Tz>`."

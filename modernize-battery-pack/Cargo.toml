@@ -1,0 +1,34 @@
+[package]
+name = "modernize-battery-pack"
+version = "0.1.0"
+description = "Modernize a Rust crate: cargo-modernize finds ecosystem upgrades, std replacements and edition work; this pack curates the modern defaults it recommends"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+keywords = ["battery-pack", "modernize", "upgrade", "migration"]
+
+# The modern replacements cargo-modernize points you at. `cargo bp add modernize`
+# lets you pick the ones you need.
+[dependencies]
+anyhow = { version = "1", optional = true }
+thiserror = { version = "2", optional = true }
+clap = { version = "4", features = ["derive"], optional = true }
+tempfile = { version = "3", optional = true }
+memmap2 = { version = "0.9", optional = true }
+rand = { version = "0.10", optional = true }
+
+[features]
+default = ["anyhow", "thiserror"]
+cli = ["clap"]
+fs = ["tempfile", "memmap2"]
+random = ["rand"]
+
+[dev-dependencies]
+battery-pack = { workspace = true, features = ["cli"] }
+
+[build-dependencies]
+battery-pack = { workspace = true, features = ["build"] }
+
+[package.metadata.battery-pack]
+hidden = ["battery-pack"]

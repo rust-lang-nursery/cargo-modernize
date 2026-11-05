@@ -1,0 +1,229 @@
+# rand 0.8 → 0.9 → 0.10. Sources: rand CHANGELOG.md (0.9.0, 0.10.0) and
+# https://rust-random.github.io/book/update.html
+# Rename rules aren't version-gated: the old names only exist in old releases,
+# so they also help a crate that is halfway through the bump.
+
+[[rule]]
+id = "rand/upgrade"
+kind = "dependency"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+version = "<0.10"
+to_version = "0.10"
+since_rust = "1.85"
+message = "rand 0.10 is current (edition 2024, MSRV 1.85). The findings below are the API changes your code hits."
+docs = "https://rust-random.github.io/book/update.html"
+
+[[rule]]
+id = "rand/thread_rng"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+paths = ["rand::thread_rng"]
+rename = "rng"
+message = "`rand::thread_rng()` was renamed `rand::rng()` and removed from the prelude (0.9)."
+
+[[rule]]
+id = "rand/gen"
+kind = "method"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+version = "<0.9"
+names = ["gen"]
+requires_import = ["rand"]
+rename = "random"
+message = "`Rng::gen` was renamed `random` (0.9). `gen` is a reserved keyword in edition 2024."
+
+[[rule]]
+id = "rand/gen_range"
+kind = "method"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+version = "<0.9"
+names = ["gen_range"]
+requires_import = ["rand"]
+rename = "random_range"
+message = "`Rng::gen_range` was renamed `random_range` (0.9)."
+
+[[rule]]
+id = "rand/gen_bool"
+kind = "method"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+version = "<0.9"
+names = ["gen_bool"]
+requires_import = ["rand"]
+rename = "random_bool"
+message = "`Rng::gen_bool` was renamed `random_bool` (0.9)."
+
+[[rule]]
+id = "rand/gen_ratio"
+kind = "method"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+version = "<0.9"
+names = ["gen_ratio"]
+requires_import = ["rand"]
+rename = "random_ratio"
+message = "`Rng::gen_ratio` was renamed `random_ratio` (0.9)."
+
+[[rule]]
+id = "rand/distributions"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+paths = ["rand::distributions"]
+rename = "distr"
+message = "Module `rand::distributions` was renamed `rand::distr` (0.9)."
+
+[[rule]]
+id = "rand/standard"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+paths = ["rand::{distributions,distr}::Standard"]
+rename = "StandardUniform"
+message = "Distribution `Standard` was renamed `StandardUniform` (0.9)."
+
+[[rule]]
+id = "rand/dist-string"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+paths = ["rand::{distributions,distr}::DistString"]
+rename = "SampleString"
+message = "Trait `DistString` was renamed `SampleString` (0.9)."
+
+[[rule]]
+id = "rand/weighted"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+paths = ["rand::{distributions,distr}::{WeightedIndex,WeightedError}"]
+message = "Weighted sampling moved to `rand::distr::weighted` (0.9): `weighted::WeightedIndex`, and `WeightedError` became `weighted::Error`."
+
+[[rule]]
+id = "rand/uniform-result"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+version = "<0.9"
+paths = ["rand::distributions::Uniform"]
+message = "`Uniform::new` / `new_inclusive` return `Result` since 0.9 (they used to panic), and ranges convert with `TryFrom`."
+suggestion = "Uniform::new(lo, hi)?  // or .unwrap() when the bounds are constants"
+
+[[rule]]
+id = "rand/from_entropy"
+kind = "method"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+names = ["from_entropy", "from_os_rng", "try_from_os_rng"]
+requires_import = ["rand"]
+message = "`SeedableRng::from_entropy` became `from_os_rng` in 0.9 and was removed in 0.10."
+suggestion = "let rng: StdRng = rand::make_rng();  // or StdRng::from_rng(&mut rand::rng())"
+
+[[rule]]
+id = "rand/choose_multiple"
+kind = "method"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+names = ["choose_multiple"]
+requires_import = ["rand"]
+rename = "sample"
+message = "`IndexedRandom::choose_multiple` / `IteratorRandom::choose_multiple` were renamed `sample` (0.10)."
+
+[[rule]]
+id = "rand/choose_multiple_array"
+kind = "method"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+names = ["choose_multiple_array"]
+requires_import = ["rand"]
+rename = "sample_array"
+message = "`choose_multiple_array` was renamed `sample_array` (0.10)."
+
+[[rule]]
+id = "rand/choose_multiple_weighted"
+kind = "method"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+names = ["choose_multiple_weighted"]
+requires_import = ["rand"]
+rename = "sample_weighted"
+message = "`choose_multiple_weighted` was renamed `sample_weighted` (0.10)."
+
+[[rule]]
+id = "rand/choose_multiple_fill"
+kind = "method"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+names = ["choose_multiple_fill"]
+requires_import = ["rand"]
+rename = "sample_fill"
+message = "`IteratorRandom::choose_multiple_fill` was renamed `sample_fill` (0.10)."
+
+[[rule]]
+id = "rand/slice-choose-iter"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+paths = ["rand::seq::SliceChooseIter"]
+rename = "IndexedSamples"
+message = "`SliceChooseIter` was renamed `IndexedSamples` (0.10)."
+
+[[rule]]
+id = "rand/os-rng"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+paths = ["rand::rngs::OsRng"]
+rename = "SysRng"
+message = "`OsRng` was renamed `SysRng` (0.10), and the `os_rng` feature is now `sys_rng`."
+
+[[rule]]
+id = "rand/reseeding-rng"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+paths = ["rand::rngs::ReseedingRng", "rand::rngs::adapter::ReseedingRng"]
+message = "`ReseedingRng` was removed in 0.10. Reseed explicitly, or use `ThreadRng`, which reseeds itself."
+
+[[rule]]
+id = "rand/rng-trait"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+version = "<0.10"
+paths = ["rand::Rng"]
+rename = "RngExt"
+message = "In 0.10 the extension trait (`random`, `random_range`, …) is `rand::RngExt`. `rand::Rng` now names the core trait that used to be `RngCore`."
+
+[[rule]]
+id = "rand/rng-core"
+kind = "path"
+category = "upgrade"
+plan = "rand → 0.10"
+crate = "rand"
+paths = ["rand::RngCore", "rand::prelude::RngCore"]
+rename = "Rng"
+message = "`RngCore` was renamed `Rng` in rand_core 0.10 (re-exported as `rand::Rng`)."

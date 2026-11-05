@@ -1,0 +1,10 @@
+# Root config: turn on an off-by-default rule, and define a project rule.
+[rules]
+"rusty/expect-lint" = "suggest"
+
+[[rule]]
+id = "acme/no-max-value-in-generated"
+kind = "path"
+category = "idiom"
+paths = ["u32::max_value"]
+message = "Project rule, scoped to this folder and below."

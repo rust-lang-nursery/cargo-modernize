@@ -1,0 +1,161 @@
+# Crates whose maintainers have deprecated them, or that are flagged unmaintained in RustSec.
+[[rule]]
+id = "deprecated/error-chain"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "error-chain"
+message = "`error-chain` is unmaintained. Use `anyhow` for applications and `thiserror` for libraries (see the error battery pack)."
+
+[[rule]]
+id = "deprecated/error-chain-macro"
+kind = "macro"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "error-chain"
+names = ["error_chain"]
+message = "`error_chain!` → define errors with `#[derive(thiserror::Error)]`, or use `anyhow::Result` with `anyhow::bail!` / `ensure!` / `.context()`."
+[[rule.examples]]
+before = """
+use error_chain::error_chain;
+error_chain! {
+    foreign_links {
+        Io(std::io::Error);
+    }
+}"""
+after = """
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}"""
+source = "rust-cookbook #872, src/errors/handle/retain.md"
+
+[[rule]]
+id = "deprecated/failure"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "failure"
+message = "`failure` is deprecated. Use `anyhow` for applications and `thiserror` for libraries."
+
+[[rule]]
+id = "deprecated/structopt"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "structopt"
+message = "`structopt` is in maintenance mode; its derive was merged into clap 3+. Use `clap = { version = \"4\", features = [\"derive\"] }`."
+docs = "https://github.com/clap-rs/clap/blob/master/CHANGELOG.md#migrating"
+
+[[rule]]
+id = "deprecated/structopt-derive"
+kind = "path"
+category = "deprecated"
+plan = "Unmaintained crates"
+paths = ["structopt::StructOpt"]
+message = "`structopt::StructOpt` → `clap::Parser` (`Opt::from_args()` → `Opt::parse()`, `#[structopt(...)]` → `#[arg(...)]` / `#[command(...)]`)."
+
+[[rule]]
+id = "deprecated/tempdir"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "tempdir"
+message = "`tempdir` is deprecated. Use `tempfile::tempdir()` / `tempfile::TempDir`."
+
+[[rule]]
+id = "deprecated/tempdir-path"
+kind = "path"
+category = "deprecated"
+plan = "Unmaintained crates"
+paths = ["tempdir::TempDir"]
+message = "`tempdir::TempDir::new(prefix)` → `tempfile::Builder::new().prefix(prefix).tempdir()` or `tempfile::tempdir()`."
+
+[[rule]]
+id = "deprecated/memmap"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "memmap"
+message = "`memmap` is unmaintained. `memmap2` is the maintained fork with the same API."
+
+[[rule]]
+id = "deprecated/dotenv"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "dotenv"
+message = "`dotenv` is unmaintained. `dotenvy` is the maintained fork (`dotenvy::dotenv()`)."
+
+[[rule]]
+id = "deprecated/ansi_term"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "ansi_term"
+message = "`ansi_term` is unmaintained. Consider `anstyle`, `owo-colors`, or `nu-ansi-term`."
+
+[[rule]]
+id = "deprecated/yaml-rust"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "yaml-rust"
+message = "`yaml-rust` is unmaintained. `yaml-rust2` is the maintained fork."
+
+[[rule]]
+id = "deprecated/serde_yaml"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "serde_yaml"
+message = "`serde_yaml` was archived by its author (marked deprecated in 0.9.34). Evaluate a maintained alternative before taking new YAML features."
+
+[[rule]]
+id = "deprecated/proc-macro-error"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "proc-macro-error"
+message = "`proc-macro-error` is unmaintained (and pulls in syn 1). Use `proc-macro-error2`, or return `syn::Error::to_compile_error()`."
+
+[[rule]]
+id = "deprecated/instant"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "instant"
+message = "`instant` is unmaintained. Use `web-time` for wasm, or `std::time::Instant` elsewhere."
+
+[[rule]]
+id = "deprecated/rustc-serialize"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "rustc-serialize"
+message = "`rustc-serialize` is deprecated. Use `serde` (and `hex` / `base64` for encodings)."
+
+[[rule]]
+id = "deprecated/difference"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "difference"
+message = "`difference` is unmaintained. Use `similar`."
+
+[[rule]]
+id = "deprecated/paste"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "paste"
+message = "`paste` has been archived by its author. It still works, but it won't get fixes; `pastey` is a maintained drop-in fork."
+
+[[rule]]
+id = "deprecated/async-std"
+kind = "dependency"
+category = "deprecated"
+plan = "Unmaintained crates"
+crate = "async-std"
+message = "`async-std` has been discontinued; its maintainers recommend `smol`. `tokio` is the other mainstream choice."

@@ -1,0 +1,36 @@
+[[rule]]
+id = "edition/2024"
+kind = "edition"
+category = "edition"
+plan = "Edition 2024"
+below_edition = 2024
+since_rust = "1.85"
+message = "This crate is on an older edition. Run `cargo fix --edition`, then set `edition = \"2024\"` and run `cargo fix --edition-idioms`."
+docs = "https://doc.rust-lang.org/edition-guide/rust-2024/index.html"
+
+[[rule]]
+id = "edition/env-set-var"
+kind = "path"
+category = "edition"
+plan = "Edition 2024"
+paths = ["std::env::{set_var,remove_var}"]
+below_edition = 2024
+message = "`env::set_var` / `remove_var` are `unsafe` in edition 2024 because they race with other threads reading the environment. Prefer passing config explicitly (`Command::env` for children); otherwise call it before spawning threads, inside `unsafe {}` with a SAFETY comment."
+
+[[rule]]
+id = "edition/extern-crate"
+kind = "extern-crate"
+category = "edition"
+plan = "Edition 2018 idioms"
+min_edition = 2018
+exclude = ["alloc", "core", "std", "test", "self"]
+message = "`extern crate` is unnecessary since edition 2018. Dependencies are in scope automatically; `use` the macros you need."
+
+[[rule]]
+id = "edition/macro-use"
+kind = "attribute"
+category = "edition"
+plan = "Edition 2018 idioms"
+names = ["macro_use"]
+min_edition = 2018
+message = "`#[macro_use]` is unnecessary since edition 2018. Import macros with `use crate_name::macro_name;`."

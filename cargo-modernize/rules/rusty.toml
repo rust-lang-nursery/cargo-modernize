@@ -1,0 +1,399 @@
+# New ways to be Rusty: opinions, ESLint-style. Each rule names the release that
+# made the newer spelling possible. Examples are real before/after pairs from
+# long-lived projects (2019 snapshot vs. 2026), so you can see the idiom in the wild.
+# Census over rust-cookbook, ripgrep, fd, bat, hyperfine, tokei, just, alacritty:
+#   inline format args 33 → 1153, let-else 20 → 166, is_some_and 0 → 71, matches! 121 → 284.
+
+[[rule]]
+id = "rusty/inline-format-args"
+kind = "pattern"
+pattern = "inline-format-args"
+category = "rusty"
+plan = "Format strings"
+since_rust = "1.58"
+message = "Format strings can capture variables directly: `\"{x}\"` instead of `\"{}\", x`."
+docs = "https://blog.rust-lang.org/2022/01/13/Rust-1.58.0.html#captured-identifiers-in-format-strings"
+[[rule.examples]]
+before = 'let _ = writeln!(io::stdout(), "Unable to create log file: {}", e);'
+after = 'let _ = writeln!(io::stdout(), "Unable to create log file: {e}");'
+source = "alacritty, alacritty/src/logging.rs"
+
+[[rule]]
+id = "rusty/let-else"
+kind = "pattern"
+pattern = "let-else"
+category = "rusty"
+plan = "Control flow"
+since_rust = "1.65"
+message = "`let … else` binds-or-diverges without the `match`/`if let` pyramid."
+suggestion = "let Some(x) = opt else { return };"
+docs = "https://doc.rust-lang.org/rust-by-example/flow_control/let_else.html"
+[[rule.examples]]
+before = '''
+let cwd = match self.get_or_set_current_dir() {
+    Some(cwd) => cwd,
+    None => return Err(..),
+};'''
+after = '''
+let Some(cwd) = self.get_or_set_current_dir() else {
+    let err = std::io::Error::other(format!(..));
+    return (Gitignore::empty(), Some(err.into()));
+};'''
+source = "ripgrep, crates/ignore/src/walk.rs (2026)"
+
+[[rule]]
+id = "rusty/let-chains"
+kind = "pattern"
+pattern = "let-chains"
+category = "rusty"
+plan = "Control flow"
+since_rust = "1.88"
+min_edition = 2024
+message = "Nested `if let { if … }` can be one `if let … && …` chain (edition 2024)."
+suggestion = "if let Some(x) = opt && x > 3 { … }"
+docs = "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/#let-chains"
+
+[[rule]]
+id = "rusty/is-some-and"
+kind = "pattern"
+pattern = "is-some-and"
+category = "rusty"
+plan = "Option & Result"
+since_rust = "1.70"
+message = "`.map_or(false, f)` reads better as `.is_some_and(f)` / `.is_ok_and(f)`."
+[[rule.examples]]
+before = ".map_or(false, |c| c.is_binary() && !config.show_nonprintable)"
+after = ".is_some_and(|c| c.is_binary() && !config.show_nonprintable);"
+source = "bat, src/printer.rs"
+
+[[rule]]
+id = "rusty/is-none-or"
+kind = "pattern"
+pattern = "is-none-or"
+category = "rusty"
+plan = "Option & Result"
+since_rust = "1.82"
+message = "`.map_or(true, f)` on an `Option` reads better as `.is_none_or(f)`."
+
+[[rule]]
+id = "rusty/as-deref"
+kind = "pattern"
+pattern = "as-deref"
+category = "rusty"
+plan = "Option & Result"
+since_rust = "1.40"
+message = "`.as_ref().map(|s| s.as_str())` is `.as_deref()`."
+[[rule.examples]]
+before = "let types: Option<&[LanguageType]> = config.types.as_ref().map(|v| &**v);"
+after = "if let Some(types) = config.types.as_deref() {"
+source = "tokei, src/utils/fs.rs"
+
+[[rule]]
+id = "rusty/bool-ok-or"
+kind = "pattern"
+pattern = "bool-ok-or"
+category = "rusty"
+plan = "Option & Result"
+since_rust = "1.98"
+message = "`if cond { Ok(()) } else { Err(e) }` is `cond.ok_or(e)` (or `ok_or_else`)."
+suggestion = "valid.ok_or(Error::Invalid)?"
+
+[[rule]]
+id = "rusty/matches-macro"
+kind = "pattern"
+pattern = "matches-macro"
+category = "rusty"
+plan = "Control flow"
+since_rust = "1.42"
+message = "A `match` that only returns `true`/`false` is `matches!(x, Pat)`."
+[[rule.examples]]
+before = '''
+match c {
+    'a'..='z' | 'A'..='Z' | '_' => true,
+    _ => false,
+}'''
+after = "matches!(c, 'a'..='z' | 'A'..='Z' | '_')"
+source = "just, src/lexer.rs"
+
+[[rule]]
+id = "rusty/mem-take"
+kind = "pattern"
+pattern = "mem-take"
+category = "rusty"
+plan = "Ownership"
+since_rust = "1.40"
+message = "`mem::replace(x, Default::default())` is `mem::take(x)`."
+[[rule.examples]]
+before = "self.stats.extend(mem::replace(&mut rhs.stats, Vec::new()));"
+after = "self.reports.extend(mem::take(&mut rhs.reports));"
+source = "tokei, src/language/mod.rs"
+
+[[rule]]
+id = "rusty/io-error-other"
+kind = "pattern"
+pattern = "io-error-other"
+category = "rusty"
+plan = "Errors"
+since_rust = "1.74"
+message = "`io::Error::new(ErrorKind::Other, e)` is `io::Error::other(e)`."
+[[rule.examples]]
+before = 'io::Error::new(io::ErrorKind::Other, format!("CWD is not known, ignoring global gitignore {}", path.display()))'
+after = 'std::io::Error::other(format!("CWD is not known, ignoring global gitignore {}", path.display()))'
+source = "ripgrep, crates/ignore/src/walk.rs"
+
+[[rule]]
+id = "rusty/split-once"
+kind = "pattern"
+pattern = "split-once"
+category = "rusty"
+plan = "Strings"
+since_rust = "1.52"
+message = "`splitn(2, sep)` plus two `next()` calls is `split_once(sep)`, which returns `Option<(&str, &str)>`."
+suggestion = "let (key, value) = line.split_once('=')?;"
+
+[[rule]]
+id = "rusty/trim-prefix"
+kind = "pattern"
+pattern = "trim-prefix"
+category = "rusty"
+plan = "Strings"
+since_rust = "1.100"
+message = "`s.strip_prefix(p).unwrap_or(s)` is `s.trim_prefix(p)` (also `trim_suffix`, and `Path::trim_prefix`)."
+docs = "https://github.com/rust-lang/rust/pull/160544"
+
+[[rule]]
+id = "rusty/lossy-owned"
+kind = "pattern"
+pattern = "lossy-owned"
+category = "rusty"
+plan = "Strings"
+since_rust = "1.99"
+message = "If you own the bytes, `String::from_utf8_lossy(&v).into_owned()` is `String::from_utf8_lossy_owned(v)`, which reuses the allocation when the input is valid UTF-8."
+docs = "https://github.com/rust-lang/rust/pull/159099"
+
+[[rule]]
+id = "rusty/vec-from-fn"
+kind = "pattern"
+pattern = "vec-from-fn"
+category = "rusty"
+plan = "Collections"
+since_rust = "1.100"
+message = "When collecting into a `Vec`, `(0..n).map(f).collect()` is `Vec::from_fn(n, f)`."
+docs = "https://github.com/rust-lang/rust/pull/162685"
+
+[[rule]]
+id = "rusty/bool-toggle"
+kind = "pattern"
+pattern = "bool-toggle"
+category = "rusty"
+plan = "Control flow"
+since_rust = "1.100"
+message = "`flag = !flag` is `flag.toggle()`."
+docs = "https://github.com/rust-lang/rust/pull/160299"
+
+[[rule]]
+id = "rusty/local-key-update"
+kind = "pattern"
+pattern = "local-key-update"
+category = "rusty"
+plan = "Concurrency"
+since_rust = "1.99"
+message = "`KEY.with(|c| c.set(c.get() + 1))` on a `thread_local!` `Cell` is `KEY.update(|v| v + 1)`."
+docs = "https://github.com/rust-lang/rust/pull/157734"
+
+[[rule]]
+id = "rusty/derive-default-enum"
+kind = "pattern"
+pattern = "derive-default-enum"
+category = "rusty"
+plan = "Traits"
+since_rust = "1.62"
+message = "A hand-written `impl Default` that returns a unit variant can be `#[derive(Default)]` with `#[default]` on the variant."
+[[rule.examples]]
+before = '''
+impl Default for ClickState {
+    fn default() -> Self { ClickState::None }
+}'''
+after = '''
+#[derive(Default)]
+pub enum ClickState {
+    #[default]
+    None,
+    ..
+}'''
+source = "alacritty, alacritty/src/event.rs"
+
+[[rule]]
+id = "rusty/non-exhaustive"
+kind = "pattern"
+pattern = "non-exhaustive"
+category = "rusty"
+plan = "Traits"
+since_rust = "1.40"
+level = "warn"
+message = "A hidden `__Nonexhaustive` variant is what `#[non_exhaustive]` on the enum is for. The compiler enforces it, and downstream code doesn't see a fake variant."
+[[rule.examples]]
+before = '''
+pub enum ErrorKind {
+    Regex(String),
+    ..
+    #[doc(hidden)]
+    __Nonexhaustive,
+}'''
+after = '''
+#[non_exhaustive]
+pub enum ErrorKind {
+    Regex(String),
+    ..
+}'''
+source = "ripgrep, grep-regex/src/error.rs (2019) → crates/regex/src/error.rs (2026)"
+
+[[rule]]
+id = "rusty/trait-upcasting"
+kind = "pattern"
+pattern = "trait-upcasting"
+category = "rusty"
+plan = "Traits"
+since_rust = "1.86"
+message = "An `as_any(&self) -> &dyn Any` trait method isn't needed for downcasting anymore. Make `Any` a supertrait and upcast `&dyn Trait` to `&dyn Any` directly."
+suggestion = "trait Plugin: Any { … }   let any: &dyn Any = plugin; any.downcast_ref::<Foo>()"
+
+# ── path rules: associated constants and inherent replacements ────────────
+[[rule]]
+id = "rusty/max-value-fn"
+kind = "path"
+category = "rusty"
+plan = "Associated constants"
+level = "warn"
+paths = ["{i8,i16,i32,i64,i128,isize,u8,u16,u32,u64,u128,usize}::{max_value,min_value}"]
+message = "`u32::max_value()` is a deprecated-in-future function. Use the associated constant `u32::MAX` (1.43)."
+[[rule.examples]]
+before = ".unwrap_or(usize::max_value());"
+after = ".unwrap_or(usize::MAX);"
+source = "bat, src/line_range.rs"
+
+[[rule]]
+id = "rusty/char-module"
+kind = "path"
+category = "rusty"
+plan = "Associated constants"
+paths = ["{std,core}::char::{from_u32,from_u32_unchecked,from_digit,MAX,REPLACEMENT_CHARACTER,UNICODE_VERSION}"]
+since_rust = "1.52"
+message = "The `std::char` free functions and constants are associated items now: `char::from_u32`, `char::from_digit`, `char::MAX`, `char::REPLACEMENT_CHARACTER`."
+
+[[rule]]
+id = "rusty/prelude-2021"
+kind = "path"
+category = "rusty"
+plan = "Edition 2021 prelude"
+paths = ["{std,core}::convert::{TryFrom,TryInto}", "{std,core}::iter::FromIterator"]
+min_edition = 2021
+message = "`TryFrom`, `TryInto`, and `FromIterator` are in the 2021 prelude, so the import can go."
+
+[[rule]]
+id = "rusty/black-box"
+kind = "path"
+category = "rusty"
+plan = "Now in std"
+paths = ["criterion::black_box", "test::black_box", "bencher::black_box"]
+since_rust = "1.66"
+message = "`std::hint::black_box` is stable (1.66), and criterion deprecated its re-export in favor of it."
+suggestion = "use std::hint::black_box;"
+
+[[rule]]
+id = "rusty/scopeguard"
+kind = "path"
+category = "rusty"
+plan = "Now in std"
+paths = ["scopeguard::{guard,ScopeGuard,defer}"]
+since_rust = "1.100"
+message = "`core::mem::DropGuard` runs a closure on drop. `DropGuard::new(value, |v| …)` replaces `scopeguard::guard`, and `DropGuard::dismiss` replaces `ScopeGuard::into_inner`."
+docs = "https://github.com/rust-lang/rust/pull/161520"
+
+[[rule]]
+id = "rusty/scopeguard-defer"
+kind = "macro"
+category = "rusty"
+plan = "Now in std"
+crate = "scopeguard"
+names = ["defer"]
+since_rust = "1.100"
+message = "`defer! { … }` → `let _guard = core::mem::DropGuard::new((), |()| { … });`"
+
+[[rule]]
+id = "rusty/filetime"
+kind = "path"
+category = "rusty"
+plan = "Now in std"
+paths = ["filetime::{set_file_mtime,set_file_atime,set_file_times,set_symlink_file_times}"]
+since_rust = "1.99"
+message = "Setting file times is in std: `std::fs::set_times(path, FileTimes::new().set_modified(t))` (1.99), or `File::set_times` (1.75)."
+docs = "https://doc.rust-lang.org/std/fs/fn.set_times.html"
+
+# ── deprecated spellings ───────────────────────────────────────────────────
+[[rule]]
+id = "rusty/trim_left"
+kind = "method"
+category = "idiom"
+plan = "Deprecated std APIs"
+level = "warn"
+names = ["trim_left", "trim_left_matches"]
+message = "`trim_left`/`trim_left_matches` are deprecated (1.33). Use `trim_start`/`trim_start_matches`."
+suggestion = "s.trim_start()"
+
+[[rule]]
+id = "rusty/trim_right"
+kind = "method"
+category = "idiom"
+plan = "Deprecated std APIs"
+level = "warn"
+names = ["trim_right", "trim_right_matches"]
+message = "`trim_right`/`trim_right_matches` are deprecated (1.33). Use `trim_end`/`trim_end_matches`."
+suggestion = "s.trim_end()"
+
+[[rule]]
+id = "rusty/spin-loop-hint"
+kind = "path"
+category = "idiom"
+plan = "Deprecated std APIs"
+level = "warn"
+paths = ["{std,core}::sync::atomic::spin_loop_hint"]
+message = "`atomic::spin_loop_hint` is deprecated. Use `std::hint::spin_loop` (1.49)."
+
+[[rule]]
+id = "rusty/array-into-iter-new"
+kind = "path"
+category = "idiom"
+plan = "Deprecated std APIs"
+level = "warn"
+paths = ["{std,core}::array::IntoIter::new"]
+message = "`array::IntoIter::new(arr)` is deprecated. Arrays implement `IntoIterator` by value: `arr.into_iter()` (edition 2021)."
+
+[[rule]]
+id = "rusty/ascii-ext"
+kind = "path"
+category = "idiom"
+plan = "Deprecated std APIs"
+level = "warn"
+paths = ["std::ascii::AsciiExt"]
+message = "`AsciiExt` is deprecated. The ASCII methods are inherent on `u8`, `char`, `str`, and `[u8]` (1.26), so the import can go."
+
+# ── compiler features ───────────────────────────────────────────────────────
+[[rule]]
+id = "rusty/stable-feature-gate"
+kind = "feature-gate"
+category = "rusty"
+plan = "Stabilized features"
+level = "warn"
+message = "This `#![feature]` gate is for a feature that is now stable. Remove it; if it was the last one, the crate may build on stable."
+docs = "https://github.com/rust-lang/rust/blob/master/RELEASES.md"
+
+[[rule]]
+id = "rusty/expect-lint"
+kind = "attribute"
+category = "rusty"
+plan = "Lints"
+level = "off"
+names = ["allow"]
+since_rust = "1.81"
+message = "`#[expect(lint)]` works like `#[allow]`, but warns when the lint stops firing, so stale suppressions don't pile up (1.81). Off by default; turn it on in `.modernize`."

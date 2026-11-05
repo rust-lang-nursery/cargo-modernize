@@ -1,0 +1,20 @@
+[package]
+name = "legacy"
+version = "0.1.0"
+edition = "2018"
+rust-version = "1.70"
+
+[dependencies]
+lazy_static = "1.4"
+num_cpus = "1.13"
+rand = "0.8.5"
+ring = { version = "0.16", features = ["std"] }
+crossbeam = "0.8"
+byteorder = "1"
+error-chain = "0.12"
+regex = "1"
+
+[dependencies.tempdir]
+version = "0.3"
+
+[workspace]

@@ -1,0 +1,35 @@
+generated = "2026-11-05"
+
+[crates.oldlib]
+latest = "0.4.2"
+status = "unmaintained"
+evidence = ["RUSTSEC-2099-0001 (2099-01-01): oldlib is unmaintained"]
+std_successors = []
+
+[[crates.oldlib.successors]]
+name = "oldlib2"
+score = 7
+recommended = true
+why = ["named as an alternative in RUSTSEC-2099-0001"]
+
+[crates.freshlib]
+latest = "3.0.0"
+
+[crates.midlib]
+latest = "2.4.0"
+
+[crates.deadlib]
+latest = "0.1.0"
+status = "unmaintained"
+evidence = ["RUSTSEC-2099-0002 (2099-01-01): deadlib is unmaintained"]
+
+# Archived alone is weak (finished crates get archived), so this transitive one is not reported.
+[crates.cfg-if]
+latest = "1.0.4"
+status = "archived"
+evidence = ["GitHub repository rust-lang/cfg-if is archived"]
+
+[crates.lazy_static]
+latest = "1.5.1"
+status = "archived"
+evidence = ["GitHub repository rust-lang-nursery/lazy-static.rs is archived"]

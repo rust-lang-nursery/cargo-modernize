@@ -1,0 +1,342 @@
+# Crates and patterns the standard library now covers.
+# `since_rust` gates on the installed toolchain and is checked against the crate's `rust-version`.
+
+# ── lazy_static / once_cell ─────────────────────────────────────────────
+[[rule]]
+id = "std/lazy_static"
+kind = "macro"
+category = "std"
+plan = "Now in std"
+names = ["lazy_static"]
+paths = ["lazy_static::lazy_static"]
+since_rust = "1.80"
+message = "`lazy_static!` is replaced by `std::sync::LazyLock` (Rust 1.80)."
+suggestion = "static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(\"...\").unwrap());"
+docs = "https://doc.rust-lang.org/std/sync/struct.LazyLock.html"
+[[rule.examples]]
+before = """
+lazy_static! {
+    static ref PRIVILEGES: HashMap<&'static str, Vec<&'static str>> = {
+        let mut map = HashMap::new();
+        ..
+    };
+}"""
+after = """
+static PRIVILEGES: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+    ..
+});"""
+source = "rust-cookbook #865, src/mem/global_static/lazy-constant.md"
+
+[[rule]]
+id = "std/lazy_static-dep"
+kind = "dependency"
+category = "std"
+plan = "Now in std"
+crate = "lazy_static"
+since_rust = "1.80"
+message = "`lazy_static` is no longer needed: use `std::sync::LazyLock`. Drop the dependency once the macros are gone."
+
+[[rule]]
+id = "std/once_cell-sync-lazy"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["once_cell::sync::Lazy"]
+since_rust = "1.80"
+message = "`once_cell::sync::Lazy` is `std::sync::LazyLock` (Rust 1.80)."
+suggestion = "use std::sync::LazyLock;"
+
+[[rule]]
+id = "std/once_cell-sync-oncecell"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["once_cell::sync::OnceCell"]
+since_rust = "1.70"
+message = "`once_cell::sync::OnceCell` is `std::sync::OnceLock` (Rust 1.70)."
+suggestion = "use std::sync::OnceLock;"
+
+[[rule]]
+id = "std/once_cell-unsync-lazy"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["once_cell::unsync::Lazy"]
+since_rust = "1.80"
+message = "`once_cell::unsync::Lazy` is `std::cell::LazyCell` (Rust 1.80)."
+
+[[rule]]
+id = "std/once_cell-unsync-oncecell"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["once_cell::unsync::OnceCell"]
+since_rust = "1.70"
+message = "`once_cell::unsync::OnceCell` is `std::cell::OnceCell` (Rust 1.70)."
+
+[[rule]]
+id = "std/once_cell-dep"
+kind = "dependency"
+category = "std"
+plan = "Now in std"
+crate = "once_cell"
+since_rust = "1.80"
+message = "`once_cell` was upstreamed: `OnceLock`/`OnceCell` (1.70), `LazyLock`/`LazyCell` (1.80). Drop it once the uses are migrated."
+
+# ── num_cpus ────────────────────────────────────────────────────────────
+[[rule]]
+id = "std/num_cpus"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["num_cpus::get"]
+since_rust = "1.59"
+message = "`num_cpus::get()` → `std::thread::available_parallelism()` (Rust 1.59). It returns `io::Result<NonZeroUsize>` and respects cgroup quotas."
+suggestion = "std::thread::available_parallelism().map_or(1, |n| n.get())"
+docs = "https://doc.rust-lang.org/std/thread/fn.available_parallelism.html"
+[[rule.examples]]
+before = "let pool = ThreadPool::new(num_cpus::get());"
+after = """
+use std::thread::available_parallelism;
+let pool = ThreadPool::new(available_parallelism()?.get());"""
+source = "rust-cookbook #806, src/concurrency/thread/threadpool-*.md"
+
+[[rule]]
+id = "std/num_cpus-dep"
+kind = "dependency"
+category = "std"
+plan = "Now in std"
+crate = "num_cpus"
+since_rust = "1.59"
+message = "`num_cpus` is usually unnecessary: use `std::thread::available_parallelism()`. Keep it only if you need `get_physical()`."
+
+# ── atty / is-terminal ──────────────────────────────────────────────────
+[[rule]]
+id = "std/atty"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["atty::is", "atty::isnt", "atty::Stream", "is_terminal::IsTerminal"]
+since_rust = "1.70"
+message = "Terminal detection is in std: `std::io::IsTerminal` (Rust 1.70)."
+suggestion = "use std::io::IsTerminal; std::io::stdout().is_terminal()"
+
+[[rule]]
+id = "std/atty-dep"
+kind = "dependency"
+category = "deprecated"
+plan = "Now in std"
+crate = "atty"
+since_rust = "1.70"
+message = "`atty` is unmaintained and has an unaligned-read soundness advisory on Windows. Use `std::io::IsTerminal`."
+
+[[rule]]
+id = "std/is-terminal-dep"
+kind = "dependency"
+category = "std"
+plan = "Now in std"
+crate = "is-terminal"
+since_rust = "1.70"
+message = "`is-terminal` was upstreamed as `std::io::IsTerminal` (Rust 1.70)."
+
+# ── crossbeam scoped threads ────────────────────────────────────────────
+[[rule]]
+id = "std/crossbeam-scope"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["crossbeam::scope", "crossbeam::thread::scope", "crossbeam_utils::thread::scope"]
+since_rust = "1.63"
+message = "Scoped threads are in std: `std::thread::scope` (Rust 1.63). Spawned closures borrow from the enclosing stack, and the scope joins them all."
+suggestion = "std::thread::scope(|s| { s.spawn(|| ...); });"
+docs = "https://doc.rust-lang.org/std/thread/fn.scope.html"
+
+# ── byteorder ───────────────────────────────────────────────────────────
+[[rule.examples]]
+before = """
+crossbeam::scope(|s| {
+    s.spawn(|_| { .. });
+}).unwrap();"""
+after = """
+std::thread::scope(|s| {
+    s.spawn(|| { .. });
+});"""
+source = "rust-cookbook #754, src/concurrency/thread/crossbeam-spawn.md"
+
+[[rule]]
+id = "std/byteorder"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["byteorder::{ByteOrder,BigEndian,LittleEndian,NetworkEndian,BE,LE,ReadBytesExt,WriteBytesExt}"]
+since_rust = "1.32"
+message = "Integer endianness conversion is built in: `u32::from_be_bytes`, `to_le_bytes`, and friends (Rust 1.32)."
+suggestion = "let n = u32::from_be_bytes(buf[..4].try_into()?);  // reader: let mut b = [0; 4]; r.read_exact(&mut b)?"
+
+# ── small helper crates ─────────────────────────────────────────────────
+[[rule.examples]]
+before = "value: bytes.read_u16::<LittleEndian>()?,"
+after = """
+let mut value = [0; 2];
+bytes.read_exact(&mut value)?;
+value: u16::from_le_bytes(value),"""
+source = "rust-cookbook, src/encoding/complex/endian-byte.md"
+
+[[rule]]
+id = "std/maplit"
+kind = "macro"
+category = "std"
+plan = "Now in std"
+crate = "maplit"
+names = ["hashmap", "hashset", "btreemap", "btreeset", "convert_args"]
+since_rust = "1.56"
+message = "Collections build from arrays directly (Rust 1.56): `HashMap::from([(k, v), ...])`."
+suggestion = "HashMap::from([(\"a\", 1), (\"b\", 2)])"
+
+[[rule]]
+id = "std/static_assertions"
+kind = "macro"
+category = "std"
+plan = "Now in std"
+crate = "static_assertions"
+names = ["const_assert", "const_assert_eq"]
+since_rust = "1.57"
+message = "`assert!` works in const context (Rust 1.57)."
+suggestion = "const _: () = assert!(size_of::<Foo>() == 8);"
+
+[[rule]]
+id = "std/array-init"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["array_init::array_init"]
+since_rust = "1.63"
+message = "Use `std::array::from_fn` (Rust 1.63)."
+suggestion = "let a: [T; N] = std::array::from_fn(|i| ...);"
+
+[[rule]]
+id = "std/itertools-repeat_n"
+kind = "path"
+category = "std"
+plan = "Now in std"
+paths = ["itertools::repeat_n"]
+since_rust = "1.82"
+message = "`std::iter::repeat_n` is in std (Rust 1.82)."
+rename = "repeat_n"
+
+[[rule]]
+id = "std/memoffset"
+kind = "macro"
+category = "std"
+plan = "Now in std"
+crate = "memoffset"
+names = ["offset_of"]
+paths = ["memoffset::offset_of"]
+since_rust = "1.77"
+message = "`offset_of!` is in std as `core::mem::offset_of!` (Rust 1.77)."
+suggestion = "use std::mem::offset_of;"
+
+[[rule]]
+id = "std/matches"
+kind = "macro"
+category = "std"
+plan = "Now in std"
+crate = "matches"
+names = ["matches", "assert_matches"]
+since_rust = "1.42"
+message = "`matches!` is a std macro (Rust 1.42). Remove the `matches` crate import."
+
+[[rule]]
+id = "std/async-trait"
+kind = "attribute"
+category = "std"
+plan = "Now in std"
+names = ["async_trait"]
+paths = ["async_trait::async_trait"]
+since_rust = "1.75"
+message = "`async fn` in traits is native since Rust 1.75. Keep `#[async_trait]` only if you need `dyn Trait` or `Send` bounds you can't spell with `-> impl Future + Send`."
+docs = "https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html"
+
+# ── deprecated std APIs ─────────────────────────────────────────────────
+[[rule]]
+id = "std/legacy-numeric-consts"
+kind = "path"
+category = "idiom"
+plan = "Deprecated std APIs"
+paths = [
+  "{std,core}::{i8,i16,i32,i64,i128,isize,u8,u16,u32,u64,u128,usize}::{MAX,MIN,max_value,min_value}",
+  "{std,core}::{f32,f64}::{EPSILON,MAX,MIN,MIN_POSITIVE,NAN,INFINITY,NEG_INFINITY,DIGITS,RADIX,MANTISSA_DIGITS,MAX_EXP,MIN_EXP,MAX_10_EXP,MIN_10_EXP}",
+]
+message = "The `std::u32`-style modules are deprecated. Use the associated constant, e.g. `u32::MAX` / `f64::EPSILON`. (`std::f64::consts` is fine.)"
+
+[[rule]]
+id = "std/mem-uninitialized"
+kind = "path"
+category = "idiom"
+plan = "Deprecated std APIs"
+paths = ["{std,core}::mem::uninitialized"]
+message = "`mem::uninitialized` is deprecated and almost always UB. Use `MaybeUninit<T>`."
+docs = "https://doc.rust-lang.org/std/mem/union.MaybeUninit.html"
+
+[[rule]]
+id = "std/atomic-init-consts"
+kind = "path"
+category = "idiom"
+plan = "Deprecated std APIs"
+paths = ["{std,core}::sync::atomic::{ATOMIC_BOOL_INIT,ATOMIC_ISIZE_INIT,ATOMIC_USIZE_INIT,ATOMIC_I8_INIT,ATOMIC_U8_INIT,ATOMIC_I16_INIT,ATOMIC_U16_INIT,ATOMIC_I32_INIT,ATOMIC_U32_INIT,ATOMIC_I64_INIT,ATOMIC_U64_INIT}"]
+message = "`ATOMIC_*_INIT` constants are deprecated. `Atomic*::new` is `const fn`."
+suggestion = "static COUNT: AtomicUsize = AtomicUsize::new(0);"
+
+[[rule]]
+id = "std/once-init"
+kind = "path"
+category = "idiom"
+plan = "Deprecated std APIs"
+paths = ["std::sync::ONCE_INIT"]
+message = "`ONCE_INIT` is deprecated. Use `Once::new()` (const). Better: use `OnceLock`/`LazyLock`."
+
+[[rule]]
+id = "std/error-description"
+kind = "method"
+category = "idiom"
+plan = "Deprecated std APIs"
+names = ["description", "cause"]
+requires_import = ["std::error::Error", "std::error"]
+message = "`Error::description` / `Error::cause` are deprecated. Use `Display` (`to_string()`) and `Error::source()`."
+
+[[rule]]
+id = "std/panic-info"
+kind = "path"
+category = "idiom"
+plan = "Deprecated std APIs"
+paths = ["std::panic::PanicInfo"]
+since_rust = "1.81"
+rename = "PanicHookInfo"
+message = "In panic hooks, `std::panic::PanicInfo` is now `std::panic::PanicHookInfo` (Rust 1.81). `PanicInfo` is the `#[panic_handler]` type."
+
+[[rule]]
+id = "std/addr_of"
+kind = "macro"
+category = "idiom"
+plan = "Modern idioms"
+paths = ["{std,core}::ptr::{addr_of,addr_of_mut}"]
+since_rust = "1.82"
+message = "`addr_of!(x)` / `addr_of_mut!(x)` have native syntax: `&raw const x` / `&raw mut x` (Rust 1.82)."
+
+[[rule]]
+id = "std/mem-prelude"
+kind = "path"
+category = "idiom"
+plan = "Modern idioms"
+paths = ["{std,core}::mem::{size_of,size_of_val,align_of,align_of_val}"]
+since_rust = "1.80"
+message = "`size_of`, `size_of_val`, `align_of`, and `align_of_val` are in the prelude (Rust 1.80). The import or `mem::` qualification can go."
+
+[[rule]]
+id = "std/try-macro"
+kind = "macro"
+category = "idiom"
+plan = "Modern idioms"
+names = ["try"]
+message = "`try!(expr)` → `expr?`."

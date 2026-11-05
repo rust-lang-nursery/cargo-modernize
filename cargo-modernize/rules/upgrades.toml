@@ -1,0 +1,125 @@
+# Major-version bumps with notable API breaks.
+[[rule]]
+id = "upgrade/thiserror-2"
+kind = "dependency"
+category = "upgrade"
+plan = "thiserror → 2"
+crate = "thiserror"
+version = "<2"
+to_version = "2"
+message = "thiserror 2 is current. Most code compiles unchanged; it adds `no_std` support and stricter format-arg checks."
+
+[[rule]]
+id = "upgrade/syn-1"
+kind = "dependency"
+category = "upgrade"
+plan = "syn 1 → 2+"
+crate = "syn"
+version = "<2"
+message = "syn 1 is end-of-life and duplicates compile time with the syn 2+ in most dependency trees. `Attribute::parse_meta` / `NestedMeta` became `attr.parse_nested_meta(|meta| ...)`."
+docs = "https://github.com/dtolnay/syn/releases/tag/2.0.0"
+
+[[rule]]
+id = "upgrade/clap-4"
+kind = "dependency"
+category = "upgrade"
+plan = "clap → 4"
+crate = "clap"
+version = "<4"
+to_version = "4"
+message = "clap 4 is current. `#[clap(...)]` → `#[arg(...)]` / `#[command(...)]`, `App` → `Command`, `Arg::with_name` → `Arg::new`."
+docs = "https://github.com/clap-rs/clap/blob/master/CHANGELOG.md#400---2022-09-28"
+
+[[rule]]
+id = "upgrade/clap-app"
+kind = "path"
+category = "upgrade"
+plan = "clap → 4"
+crate = "clap"
+version = "<4"
+paths = ["clap::App"]
+rename = "Command"
+message = "`clap::App` was renamed `clap::Command` (clap 3.1+, removed in 4)."
+
+[[rule]]
+id = "upgrade/bitflags-2"
+kind = "dependency"
+category = "upgrade"
+plan = "bitflags → 2"
+crate = "bitflags"
+version = "<2"
+to_version = "2"
+message = "bitflags 2 generates a newtype: derive traits (`Debug`, `Clone`, `PartialEq`, …) explicitly on the struct, and use `.bits()` / `from_bits_retain` for raw values."
+docs = "https://docs.rs/bitflags/latest/bitflags/#upgrading-from-1x"
+
+[[rule]]
+id = "upgrade/hyper-1"
+kind = "dependency"
+category = "upgrade"
+plan = "hyper → 1"
+crate = "hyper"
+version = "<1"
+message = "hyper 1.0 moved the high-level client/server into `hyper-util` and bodies into `http-body-util`. For most apps, `reqwest` (client) or `axum` (server) is the simpler path."
+docs = "https://hyper.rs/guides/1/upgrading/"
+
+[[rule]]
+id = "upgrade/tokio-1"
+kind = "dependency"
+category = "upgrade"
+plan = "tokio → 1"
+crate = "tokio"
+version = "<1"
+to_version = "1"
+message = "tokio 0.x is long unsupported. tokio 1 is the stable line."
+
+[[rule]]
+id = "upgrade/tokio-delay_for"
+kind = "path"
+category = "upgrade"
+plan = "tokio → 1"
+crate = "tokio"
+paths = ["tokio::time::delay_for"]
+rename = "sleep"
+message = "`tokio::time::delay_for` was renamed `sleep` (tokio 0.3/1.0)."
+
+[[rule]]
+id = "upgrade/tokio-delay_until"
+kind = "path"
+category = "upgrade"
+plan = "tokio → 1"
+crate = "tokio"
+paths = ["tokio::time::delay_until"]
+rename = "sleep_until"
+message = "`tokio::time::delay_until` was renamed `sleep_until` (tokio 1.0)."
+
+[[rule]]
+id = "upgrade/tokio-scheduler"
+kind = "method"
+category = "upgrade"
+plan = "tokio → 1"
+crate = "tokio"
+version = "<1"
+names = ["threaded_scheduler", "basic_scheduler"]
+requires_import = ["tokio"]
+message = "Runtime builders changed in tokio 1: `Builder::new().threaded_scheduler()` → `Builder::new_multi_thread()`, `basic_scheduler()` → `Builder::new_current_thread()`."
+
+[[rule]]
+id = "upgrade/base64-engine"
+kind = "path"
+category = "upgrade"
+plan = "base64 → 0.22"
+crate = "base64"
+paths = ["base64::{encode,decode,encode_config,decode_config,encode_config_buf,decode_config_buf,encode_config_slice,decode_config_slice}"]
+message = "base64's free functions were deprecated in 0.21 and removed in 0.22. Use the `Engine` API."
+suggestion = "use base64::{Engine as _, engine::general_purpose::STANDARD}; STANDARD.encode(bytes)"
+docs = "https://github.com/marshallpierce/rust-base64/blob/master/RELEASE-NOTES.md#0210"
+
+[[rule]]
+id = "upgrade/base64-dep"
+kind = "dependency"
+category = "upgrade"
+plan = "base64 → 0.22"
+crate = "base64"
+version = "<0.22"
+to_version = "0.22"
+message = "base64 0.22 is current (Engine API)."
