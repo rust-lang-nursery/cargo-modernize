@@ -1257,10 +1257,10 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
 
     fn visit_item_trait(&mut self, t: &'ast syn::ItemTrait) {
         for item in &t.items {
-            if let syn::TraitItem::Fn(f) = item {
-                if matches!(f.sig.ident.to_string().as_str(), "as_any" | "as_any_mut") {
-                    self.pattern("trait-upcasting", f.sig.ident.span(), None);
-                }
+            if let syn::TraitItem::Fn(f) = item
+                && matches!(f.sig.ident.to_string().as_str(), "as_any" | "as_any_mut")
+            {
+                self.pattern("trait-upcasting", f.sig.ident.span(), None);
             }
         }
         visit::visit_item_trait(self, t);

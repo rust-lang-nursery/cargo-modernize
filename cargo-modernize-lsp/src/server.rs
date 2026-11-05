@@ -169,9 +169,8 @@ impl LanguageServer for ModernizeServer {
         let position = text_document_position_params.position;
 
         let docs = self.documents.read().await;
-        let source = match docs.get(&url) {
-            Some(s) => s,
-            None => return Ok(None),
+        let Some(source) = docs.get(&url) else {
+            return Ok(None);
         };
 
         let byte_offset =
@@ -183,10 +182,7 @@ impl LanguageServer for ModernizeServer {
                 let markup = MarkupContent {
                     kind: MarkupKind::Markdown,
                     value: if let Some(new_way) = &f.suggestion {
-                        format!(
-                            "**{}**\n\nOld: {}\n\nNew: {}",
-                            f.message, f.message, new_way
-                        )
+                        format!("**{}**\n\nOld: {}\n\nNew: {new_way}", f.message, f.message)
                     } else {
                         format!("**{}**\n\n{}", f.rule_id, f.message)
                     },

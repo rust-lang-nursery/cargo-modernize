@@ -6,7 +6,7 @@ exclude = ["cargo-modernize/tests/fixtures"]
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [workspace.dependencies]
 battery-pack = "0.6"
