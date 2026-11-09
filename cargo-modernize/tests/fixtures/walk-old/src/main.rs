@@ -19,6 +19,26 @@ impl<'a> fmt::Display for Token<'a> {
     }
 }
 
+#[derive(Debug)]
+struct MyErr;
+
+impl fmt::Display for MyErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "my error")
+    }
+}
+
+#[allow(deprecated)]
+impl std::error::Error for MyErr {
+    fn description(&self) -> &str {
+        "my error"
+    }
+
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        None
+    }
+}
+
 fn double(x: u32) -> u32 {
     return x * 2;
 }

@@ -69,6 +69,8 @@ pub const PATTERNS: &[&str] = &[
     "static-lifetime",
     "bare-trait-object",
     "impl-lifetime-elision",
+    "error-description-impl",
+    "error-cause-impl",
 ];
 
 /// A source file the scanner could not read or parse. Nothing in it was checked.
@@ -1400,6 +1402,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
     fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl) {
         self.impl_patterns(i);
         self.legacy_impl(i);
+        self.legacy_error_impl(i);
         visit::visit_item_impl(self, i);
     }
 
