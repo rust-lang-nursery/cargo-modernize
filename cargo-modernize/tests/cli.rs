@@ -315,3 +315,76 @@ fn copy_dir(src: &Path, dst: &Path) {
         }
     }
 }
+
+#[test]
+fn walk_rules_step_forward_by_release_band() {
+    let v = run_json(&fixture("walk/Cargo.toml"), &["--fail-on", "off"]);
+    let found = findings(&v);
+    for rule in [
+        "walk/compare-and-swap",
+        "walk/os-raw-ffi",
+        "walk/default-hasher",
+        "walk/random-state",
+        "walk/future-prelude",
+    ] {
+        assert!(found.iter().any(|(r, f, _)| r == rule && f == "src/main.rs"), "missing {rule}: {found:#?}");
+    }
+    // `--only` selects one band at a time.
+    let band = findings(&run_json(&fixture("walk/Cargo.toml"), &["--fail-on", "off", "--only", "1.6"]));
+    assert!(!band.is_empty() && band.iter().all(|(r, _, _)| r == "walk/os-raw-ffi"), "{band:#?}");
+}
+
+#[test]
+fn walk_old_idioms_are_found_and_rewritten_to_code_that_compiles() {
+    let v = run_json(&fixture("walk-old/Cargo.toml"), &["--fail-on", "off", "--only", "Walk"]);
+    let found = findings(&v);
+    for rule in [
+        "walk/len-zero", "walk/none-compare", "walk/redundant-pattern", "walk/needless-return",
+        "walk/filter-next", "walk/map-flatten", "walk/while-let-loop", "walk/option-map-match",
+        "walk/match-unwrap-or", "walk/cloned", "walk/copied", "walk/unwrap-or-default",
+        "walk/field-shorthand", "walk/static-lifetime", "walk/bare-trait-object", "walk/or-default",
+        "walk/filter-map-identity", "walk/and-then-some", "walk/impl-lifetime-elision",
+        "walk/rem-euclid", "walk/clamp", "walk/bool-then", "walk/duration-zero", "walk/repeat-n",
+        "walk/total-cmp",
+    ] {
+        assert!(found.iter().any(|(r, _, _)| r == rule), "missing {rule}: {found:#?}");
+    }
+
+    // `--dangerous` rewrites everything it can, `cargo check` verifies, and nothing is reverted.
+    let dir = copy_fixture("walk-old");
+    let out = modernize(&dir, &["--dangerous", "--allow-no-vcs", "--only", "Walk"]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!stderr.contains("Reverted"), "{stderr}");
+    let src = read(&dir, "src/main.rs");
+    for want in [
+        "v.is_empty()", "o.is_none()", "m.get(\"k\").is_some()", ".find(|x| **x > 1)", ".flat_map(", ".flatten()",
+        ".cloned()", ".copied()", "unwrap_or_default()", "Config { name, port }", "&[&str]", "dyn fmt::Display + Send",
+        ".or_default()", "o.map(|x| x + 1)", "o.unwrap_or(0)", "while let Some(x) = stack.pop()", "idx.rem_euclid(len)",
+        ".then(|| idx)", "Duration::ZERO", "repeat_n(0u8, 3)", "idx.clamp(0, 10)", "Token<'_>",
+    ] {
+        assert!(src.contains(want), "missing `{want}` in:\n{src}");
+    }
+    assert!(!src.contains("return x * 2"), "{src}");
+    let check = Command::new("cargo").arg("check").arg("--manifest-path").arg(dir.join("Cargo.toml")).output().unwrap();
+    assert!(check.status.success(), "{}", String::from_utf8_lossy(&check.stderr));
+    // What is left needs judgment: the rewrite is a suggestion only.
+    let left = findings(&run_json(&dir.join("Cargo.toml"), &["--fail-on", "off", "--only", "Walk"]));
+    // (The edition step is a manifest nudge, not a rewrite.)
+    let left: Vec<_> = left.iter().map(|(r, _, _)| r.as_str()).filter(|r| !r.starts_with("walk/edition")).collect();
+    assert_eq!(left, ["walk/total-cmp"], "{left:#?}");
+}
+
+#[test]
+fn warns_about_nested_crates_that_are_not_workspace_members() {
+    let dir = std::env::temp_dir().join(format!("cargo-modernize-nested-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    std::fs::create_dir_all(dir.join("inner/src")).unwrap();
+    std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"outer\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[workspace]\n").unwrap();
+    std::fs::write(dir.join("src/lib.rs"), "").unwrap();
+    std::fs::write(dir.join("inner/Cargo.toml"), "[package]\nname = \"inner\"\nversion = \"0.1.0\"\nedition = \"2021\"\n").unwrap();
+    std::fs::write(dir.join("inner/src/lib.rs"), "pub fn f(v: &[u8]) -> bool { v.len() == 0 }\n").unwrap();
+    let out = modernize(&dir, &["--format", "json", "--fail-on", "off"]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("1 nested crate(s) are not workspace members") && stderr.contains("inner"), "{stderr}");
+}

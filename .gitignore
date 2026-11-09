@@ -1,1 +1,4 @@
 /target
+/zed-extension/target
+/zed-extension/extension.wasm
+/zed-extension/grammars

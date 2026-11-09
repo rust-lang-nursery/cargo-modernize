@@ -1,0 +1,11 @@
+id = "modernize"
+name = "cargo-modernize"
+version = "0.0.1"
+schema_version = 1
+authors = ["Andrew Gauger"]
+description = "cargo-modernize diagnostics and quick fixes for Rust"
+repository = "https://github.com/andygauge/modernize"
+
+[language_servers.modernize]
+name = "cargo-modernize"
+languages = ["Rust"]

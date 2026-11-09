@@ -1,0 +1,50 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+      - run: cargo clippy --workspace --all-targets
+
+  # Dogfood: run cargo-modernize on this repo and report upcoming changes on the PR.
+  # Advisory only, so it never fails the build; use `--fail-on warn` to make it a gate.
+  modernize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build -p cargo-modernize
+      - name: Run cargo modernize on itself
+        run: |
+          {
+            echo '<!-- cargo-modernize-advisory -->'
+            echo '### cargo modernize on itself'
+            echo
+            echo 'Advisory: upcoming features and idioms this repo could adopt. This does not block merging.'
+            echo
+            echo '```'
+            ./target/debug/cargo-modernize modernize --format plans --min-level suggest 2>&1 || true
+            echo '```'
+          } | tee modernize-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Comment on the PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --edit-last --create-if-none --body-file modernize-report.md

@@ -1,0 +1,63 @@
+{
+ "try!": {
+  "file skipped (syn parse error)": 48,
+  "crate not analyzed (not a workspace member)": 108,
+  "inside macro_rules! body": 26
+ },
+ "extern crate": {
+  "edition 2015 (by design)": 1461,
+  "crate not analyzed (not a workspace member)": 473,
+  "file skipped (syn parse error)": 25,
+  "unexplained": 6
+ },
+ ".len() == 0": {
+  "file skipped (syn parse error)": 14,
+  "unexplained": 10,
+  "crate not analyzed (not a workspace member)": 16
+ },
+ "#[macro_use]": {
+  "edition 2015 (by design)": 349,
+  "file skipped (syn parse error)": 7,
+  "crate not analyzed (not a workspace member)": 82,
+  "unexplained": 2
+ },
+ "fn description": {
+  "file skipped (syn parse error)": 2,
+  "unexplained": 32,
+  "crate not analyzed (not a workspace member)": 3
+ },
+ "mem::uninit": {
+  "crate not analyzed (not a workspace member)": 7,
+  "file skipped (syn parse error)": 3,
+  "unexplained": 3
+ },
+ "std::u32::MAX": {
+  "file skipped (syn parse error)": 1,
+  "crate not analyzed (not a workspace member)": 29
+ },
+ "trim_left/right": {
+  "file skipped (syn parse error)": 2,
+  "crate not analyzed (not a workspace member)": 3
+ },
+ "lazy_static!": {
+  "file skipped (syn parse error)": 2,
+  "unexplained": 2,
+  "crate not analyzed (not a workspace member)": 2,
+  "inside macro_rules! body": 2
+ },
+ "max_value()": {
+  "file skipped (syn parse error)": 8,
+  "crate not analyzed (not a workspace member)": 5
+ },
+ "compare_and_swap": {
+  "file skipped (syn parse error)": 6
+ },
+ "== None": {
+  "file skipped (syn parse error)": 1
+ },
+ "ATOMIC_*_INIT": {
+  "inside macro_rules! body": 1
+ },
+ "sleep_ms": {},
+ "error_chain!": {}
+}

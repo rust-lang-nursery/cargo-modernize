@@ -1,0 +1,868 @@
+[
+ {
+  "year": "2015",
+  "repo": "seb-m/common.rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 1017
+ },
+ {
+  "year": "2015",
+  "repo": "kbknapp/docli-rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 3488
+ },
+ {
+  "year": "2015",
+  "repo": "BurntSushi/rust-cbor",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 3116,
+  "unanalyzed": 54
+ },
+ {
+  "year": "2015",
+  "repo": "vhbit/sherwood",
+  "members": 1,
+  "manifests": 2,
+  "unanalyzed": 367,
+  "analyzed": 1472
+ },
+ {
+  "year": "2015",
+  "repo": "blackbeam/rust-mysql-simple",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 7295
+ },
+ {
+  "year": "2015",
+  "repo": "gchp/rustbox",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 549
+ },
+ {
+  "year": "2015",
+  "repo": "schickling/rust-beanstalkd",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 314
+ },
+ {
+  "year": "2015",
+  "repo": "zargony/rust-fuse",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2766
+ },
+ {
+  "year": "2015",
+  "repo": "cyndis/qmlrs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 634
+ },
+ {
+  "year": "2015",
+  "repo": "Manishearth/rust-clippy",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 10505
+ },
+ {
+  "year": "2015",
+  "repo": "bbodi/rust-voxlap",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2121
+ },
+ {
+  "year": "2015",
+  "repo": "erickt/rust-zmq",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 1358,
+  "unanalyzed": 191
+ },
+ {
+  "year": "2015",
+  "repo": "servo/html5ever",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 4370
+ },
+ {
+  "year": "2015",
+  "repo": "JeremyLetang/rust-portaudio",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 3737
+ },
+ {
+  "year": "2015",
+  "repo": "swatteau/sokoban-rs",
+  "meta": "failed"
+ },
+ {
+  "year": "2015",
+  "repo": "arcnmx/nue",
+  "members": 1,
+  "manifests": 10,
+  "analyzed": 14,
+  "unanalyzed": 3289
+ },
+ {
+  "year": "2015",
+  "repo": "alexcrichton/flate2-rs",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 2378,
+  "unanalyzed": 85
+ },
+ {
+  "year": "2015",
+  "repo": "rustbridge/neon",
+  "members": 1,
+  "manifests": 2,
+  "unanalyzed": 402,
+  "analyzed": 1243
+ },
+ {
+  "year": "2015",
+  "repo": "mikkyang/rust-blas",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2928
+ },
+ {
+  "year": "2015",
+  "repo": "tupshin/cassandra-rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 7387
+ },
+ {
+  "year": "2015",
+  "repo": "ozkriff/zoc",
+  "members": 1,
+  "manifests": 6,
+  "analyzed": 21,
+  "unanalyzed": 7084
+ },
+ {
+  "year": "2015",
+  "repo": "BurntSushi/rust-csv",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 3232
+ },
+ {
+  "year": "2015",
+  "repo": "vhbit/lmdb-rs",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 2908,
+  "unanalyzed": 330
+ },
+ {
+  "year": "2015",
+  "repo": "JeremyLetang/ears",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 4629
+ },
+ {
+  "year": "2015",
+  "repo": "ende76/brotli-rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 14811
+ },
+ {
+  "year": "2015",
+  "repo": "Ogeon/rustful",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 5812
+ },
+ {
+  "year": "2015",
+  "repo": "phildawes/racer",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 7486
+ },
+ {
+  "year": "2015",
+  "repo": "kbknapp/clap-rs",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 12139,
+  "unanalyzed": 133
+ },
+ {
+  "year": "2015",
+  "repo": "bjz/glfw-rs",
+  "meta": "failed"
+ },
+ {
+  "year": "2015",
+  "repo": "gtk-rs/gtk",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 18481,
+  "unanalyzed": 12161
+ },
+ {
+  "year": "2018",
+  "repo": "rust-lang/rls",
+  "members": 1,
+  "manifests": 21,
+  "analyzed": 17127,
+  "unanalyzed": 692
+ },
+ {
+  "year": "2018",
+  "repo": "zonyitoo/coio-rs",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 7909,
+  "unanalyzed": 530
+ },
+ {
+  "year": "2018",
+  "repo": "unrust/unrust",
+  "members": 1,
+  "manifests": 3,
+  "unanalyzed": 152,
+  "analyzed": 12185
+ },
+ {
+  "year": "2018",
+  "repo": "kpcyrd/rshijack",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 442
+ },
+ {
+  "year": "2018",
+  "repo": "garkimasera/rusted-ruins",
+  "members": 10,
+  "manifests": 11,
+  "analyzed": 18614
+ },
+ {
+  "year": "2018",
+  "repo": "sunng87/handlebars-iron",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 903
+ },
+ {
+  "year": "2018",
+  "repo": "arcnmx/nue",
+  "members": 1,
+  "manifests": 10,
+  "analyzed": 14,
+  "unanalyzed": 3289
+ },
+ {
+  "year": "2018",
+  "repo": "arvancloud/nginx-rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 161
+ },
+ {
+  "year": "2018",
+  "repo": "Geal/nom",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 21724
+ },
+ {
+  "year": "2018",
+  "repo": "carllerche/mio",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 19421
+ },
+ {
+  "year": "2018",
+  "repo": "indiscipline/zrtstr",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 359
+ },
+ {
+  "year": "2018",
+  "repo": "fizyk20/rust-gmp",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2671
+ },
+ {
+  "year": "2018",
+  "repo": "JohnBSmith/moss",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 21921
+ },
+ {
+  "year": "2018",
+  "repo": "iamsix/oxidenes",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 6319
+ },
+ {
+  "year": "2018",
+  "repo": "killercup/cargo-edit",
+  "members": 1,
+  "manifests": 6,
+  "analyzed": 3608,
+  "unanalyzed": 0
+ },
+ {
+  "year": "2018",
+  "repo": "pwoolcoc/cargo-do",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 99
+ },
+ {
+  "year": "2018",
+  "repo": "frewsxcv/crate-deps",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 107
+ },
+ {
+  "year": "2018",
+  "repo": "pop-os/progress-streams",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 190
+ },
+ {
+  "year": "2018",
+  "repo": "ludat/hado-rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 266
+ },
+ {
+  "year": "2018",
+  "repo": "intecture/api",
+  "members": 4,
+  "manifests": 5,
+  "analyzed": 4249
+ },
+ {
+  "year": "2018",
+  "repo": "gchp/iota",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 3854
+ },
+ {
+  "year": "2018",
+  "repo": "White-Oak/qml-rust",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 2535,
+  "unanalyzed": 89
+ },
+ {
+  "year": "2018",
+  "repo": "jhspetersson/fselect",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 5878
+ },
+ {
+  "year": "2018",
+  "repo": "ArgusObserver/wagu",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2976
+ },
+ {
+  "year": "2018",
+  "repo": "RustCrypto/hashes",
+  "members": 12,
+  "manifests": 13,
+  "analyzed": 8090
+ },
+ {
+  "year": "2018",
+  "repo": "japaric/trust",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 77
+ },
+ {
+  "year": "2018",
+  "repo": "saresend/Gust",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 1755
+ },
+ {
+  "year": "2018",
+  "repo": "casey/just",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 7649,
+  "unanalyzed": 9
+ },
+ {
+  "year": "2018",
+  "repo": "musitdev/portmidi-rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 1005
+ },
+ {
+  "year": "2018",
+  "repo": "libpnet/libpnet",
+  "members": 1,
+  "manifests": 9,
+  "analyzed": 1448,
+  "unanalyzed": 9554
+ },
+ {
+  "year": "2021",
+  "repo": "lemunozm/message-io",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 5833
+ },
+ {
+  "year": "2021",
+  "repo": "mackwic/colored",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2028
+ },
+ {
+  "year": "2021",
+  "repo": "klutzy/suruga",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 4524
+ },
+ {
+  "year": "2021",
+  "repo": "beneills/quantum",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 1921
+ },
+ {
+  "year": "2021",
+  "repo": "replicadse/complate",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 893
+ },
+ {
+  "year": "2021",
+  "repo": "AlKass/polish",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 483
+ },
+ {
+  "year": "2021",
+  "repo": "vulkano-rs/vulkano",
+  "members": 4,
+  "manifests": 5,
+  "analyzed": 87689
+ },
+ {
+  "year": "2021",
+  "repo": "brson/rust-sdl",
+  "members": 1,
+  "manifests": 4,
+  "unanalyzed": 487,
+  "analyzed": 3141
+ },
+ {
+  "year": "2021",
+  "repo": "vishaltelangre/ff",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 396
+ },
+ {
+  "year": "2021",
+  "repo": "cksac/fake-rs",
+  "members": 2,
+  "manifests": 3,
+  "analyzed": 7926
+ },
+ {
+  "year": "2021",
+  "repo": "skade/leveldb",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2102
+ },
+ {
+  "year": "2021",
+  "repo": "awslabs/flowgger",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 8007
+ },
+ {
+  "year": "2021",
+  "repo": "zonyitoo/coio-rs",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 7909,
+  "unanalyzed": 530
+ },
+ {
+  "year": "2021",
+  "repo": "tokio-rs/prost",
+  "meta": "failed"
+ },
+ {
+  "year": "2021",
+  "repo": "Luminarys/synapse",
+  "members": 8,
+  "manifests": 10,
+  "analyzed": 21310,
+  "unanalyzed": 485
+ },
+ {
+  "year": "2021",
+  "repo": "rustls/rustls",
+  "members": 2,
+  "manifests": 4,
+  "analyzed": 33774,
+  "unanalyzed": 198
+ },
+ {
+  "year": "2021",
+  "repo": "bevyengine/bevy",
+  "members": 37,
+  "manifests": 40,
+  "analyzed": 77226,
+  "unanalyzed": 1732
+ },
+ {
+  "year": "2021",
+  "repo": "lotabout/skim",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 8842
+ },
+ {
+  "year": "2021",
+  "repo": "alexcrichton/bzip2-rs",
+  "members": 2,
+  "manifests": 2,
+  "analyzed": 1795
+ },
+ {
+  "year": "2021",
+  "repo": "jimmycuadra/rust-etcd",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 4200
+ },
+ {
+  "year": "2021",
+  "repo": "pikkr/pikkr",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 3987
+ },
+ {
+  "year": "2021",
+  "repo": "neon-bindings/neon",
+  "members": 9,
+  "manifests": 9,
+  "analyzed": 14535
+ },
+ {
+  "year": "2021",
+  "repo": "KISS-UI/kiss-ui",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2004
+ },
+ {
+  "year": "2021",
+  "repo": "hannobraun/inotify-rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2005
+ },
+ {
+  "year": "2021",
+  "repo": "yaa110/rust-iptables",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 625
+ },
+ {
+  "year": "2021",
+  "repo": "dermesser/yup-oauth2",
+  "members": 7,
+  "manifests": 7,
+  "analyzed": 4354
+ },
+ {
+  "year": "2021",
+  "repo": "terminusdb/terminusdb-store",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 22841
+ },
+ {
+  "year": "2021",
+  "repo": "bonifaido/rust-zookeeper",
+  "members": 1,
+  "manifests": 2,
+  "analyzed": 3917,
+  "unanalyzed": 164
+ },
+ {
+  "year": "2021",
+  "repo": "lucidscape/corange-rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 3170
+ },
+ {
+  "year": "2021",
+  "repo": "naomijub/edn-rs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 5527
+ },
+ {
+  "year": "2024",
+  "repo": "d-e-s-o/test-log",
+  "members": 2,
+  "manifests": 2,
+  "analyzed": 517
+ },
+ {
+  "year": "2024",
+  "repo": "garro95/priority-queue",
+  "members": 2,
+  "manifests": 2,
+  "analyzed": 5366
+ },
+ {
+  "year": "2024",
+  "repo": "llogiq/mutagen",
+  "members": 9,
+  "manifests": 10,
+  "analyzed": 6843
+ },
+ {
+  "year": "2024",
+  "repo": "vitiral/path_abs",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 4729
+ },
+ {
+  "year": "2024",
+  "repo": "antimonyproject/antimony",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 223
+ },
+ {
+  "year": "2024",
+  "repo": "cchexcode/complate",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 982
+ },
+ {
+  "year": "2024",
+  "repo": "ihalila/pancurses",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 3592
+ },
+ {
+  "year": "2024",
+  "repo": "igumnoff/gabriel2",
+  "members": 2,
+  "manifests": 3,
+  "analyzed": 1883
+ },
+ {
+  "year": "2024",
+  "repo": "zellij-org/zellij",
+  "members": 15,
+  "manifests": 15,
+  "analyzed": 148271
+ },
+ {
+  "year": "2024",
+  "repo": "BurntSushi/tabwriter",
+  "members": 1,
+  "manifests": 2,
+  "unanalyzed": 57,
+  "analyzed": 743
+ },
+ {
+  "year": "2024",
+  "repo": "chyh1990/yaml-rust",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 4807
+ },
+ {
+  "year": "2024",
+  "repo": "xiph/rav1e",
+  "members": 2,
+  "manifests": 3,
+  "analyzed": 70870,
+  "unanalyzed": 76
+ },
+ {
+  "year": "2024",
+  "repo": "citahub/cita",
+  "meta": "failed"
+ },
+ {
+  "year": "2024",
+  "repo": "kornelski/rust-security-framework",
+  "members": 4,
+  "manifests": 5,
+  "analyzed": 13041
+ },
+ {
+  "year": "2024",
+  "repo": "cristicbz/rust-doom",
+  "members": 6,
+  "manifests": 6,
+  "analyzed": 11410
+ },
+ {
+  "year": "2024",
+  "repo": "bheisler/criterion.rs",
+  "members": 2,
+  "manifests": 4,
+  "analyzed": 16245,
+  "unanalyzed": 163
+ },
+ {
+  "year": "2024",
+  "repo": "ShadoySV/work-break",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 575
+ },
+ {
+  "year": "2024",
+  "repo": "djduque/pgfplots",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 1779
+ },
+ {
+  "year": "2024",
+  "repo": "bluealloy/revm",
+  "members": 23,
+  "manifests": 25,
+  "analyzed": 35081,
+  "unanalyzed": 274
+ },
+ {
+  "year": "2024",
+  "repo": "cossacklabs/themis",
+  "members": 5,
+  "manifests": 6,
+  "analyzed": 7819,
+  "unanalyzed": 2933
+ },
+ {
+  "year": "2024",
+  "repo": "kpcyrd/sn0int",
+  "members": 4,
+  "manifests": 4,
+  "analyzed": 29444
+ },
+ {
+  "year": "2024",
+  "repo": "sunng87/handlebars-rust",
+  "members": 1,
+  "manifests": 2,
+  "unanalyzed": 24,
+  "analyzed": 12506
+ },
+ {
+  "year": "2024",
+  "repo": "huggingface/candle",
+  "members": 18,
+  "manifests": 23,
+  "analyzed": 133876,
+  "unanalyzed": 15211
+ },
+ {
+  "year": "2024",
+  "repo": "pcwalton/sprocketnes",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 5189
+ },
+ {
+  "year": "2024",
+  "repo": "rust-lang/rustup",
+  "members": 2,
+  "manifests": 2,
+  "analyzed": 35447
+ },
+ {
+  "year": "2024",
+  "repo": "d-unsed/ruru",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 5619
+ },
+ {
+  "year": "2024",
+  "repo": "theseus-os/Theseus",
+  "members": 199,
+  "manifests": 273,
+  "unanalyzed": 26754,
+  "analyzed": 84057
+ },
+ {
+  "year": "2024",
+  "repo": "skade/leveldb",
+  "members": 1,
+  "manifests": 1,
+  "analyzed": 2102
+ },
+ {
+  "year": "2024",
+  "repo": "zino-rs/zino",
+  "members": 24,
+  "manifests": 33,
+  "analyzed": 41979,
+  "unanalyzed": 3261
+ },
+ {
+  "year": "2024",
+  "repo": "tensorflow/rust",
+  "members": 4,
+  "manifests": 6,
+  "unanalyzed": 9065,
+  "analyzed": 464199
+ }
+]

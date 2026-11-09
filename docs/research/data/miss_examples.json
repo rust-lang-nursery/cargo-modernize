@@ -1,0 +1,89 @@
+{
+ "fn description": [
+  [
+   "2015",
+   "blackbeam/rust-mysql-simple",
+   "src/error.rs:25",
+   "fn description(&self) -> &str {"
+  ],
+  [
+   "2015",
+   "Manishearth/rust-clippy",
+   "src/methods.rs:517",
+   "fn description(&self) -> &'static str {"
+  ],
+  [
+   "2015",
+   "erickt/rust-zmq",
+   "src/lib.rs:214",
+   "fn description(&self) -> &str {"
+  ],
+  [
+   "2015",
+   "JeremyLetang/rust-portaudio",
+   "src/error.rs:79",
+   "fn description(&self) -> &str {"
+  ]
+ ],
+ ".len() == 0": [
+  [
+   "2015",
+   "Manishearth/rust-clippy",
+   "src/len_zero.rs:22",
+   "\"checking `.len() == 0` or `.len() > 0` (or similar) when `.is_empty()` \\"
+  ],
+  [
+   "2018",
+   "Geal/nom",
+   "src/regexp.rs:229",
+   "if v.len() != 0 {"
+  ]
+ ],
+ "extern crate": [
+  [
+   "2018",
+   "rust-lang/rls",
+   "tests/tests.rs:120",
+   "extern crate member_lib;"
+  ]
+ ],
+ "lazy_static!": [
+  [
+   "2018",
+   "Geal/nom",
+   "src/regexp.rs:5",
+   "lazy_static! {"
+  ]
+ ],
+ "mem::uninit": [
+  [
+   "2018",
+   "Geal/nom",
+   "src/multi.rs:796",
+   "let mut res: [$typ; $count] = unsafe{[$crate::lib::std::mem::uninitialized(); $count as us"
+  ],
+  [
+   "2018",
+   "White-Oak/qml-rust",
+   "src/macros.rs:136",
+   "ptr: ::std::mem::uninitialized(),"
+  ]
+ ],
+ "#[macro_use]": [
+  [
+   "2024",
+   "xiph/rav1e",
+   "src/cpu_features/mod.rs:12",
+   "#[macro_use]"
+  ]
+ ],
+ "try!": [],
+ "trim_left/right": [],
+ "max_value()": [],
+ "std::u32::MAX": [],
+ "ATOMIC_*_INIT": [],
+ "compare_and_swap": [],
+ "== None": [],
+ "sleep_ms": [],
+ "error_chain!": []
+}

@@ -21,9 +21,10 @@ modernize/                              # workspace root
     src/rules.rs                        # Rule struct, TOML parsing, built-in packs
     src/scan.rs                         # syn-based parsing, path resolution, PATTERNS
     src/rewrite.rs                      # structural detectors and span-based rewrites
+    src/legacy.rs                       # detectors for idioms older than Rust 1.50 (walk/* rules)
     src/fix.rs                          # apply fixes in passes, cargo check verification, revert
     src/report.rs                       # human / plans / json output, --explain
-    rules/*.toml                        # built-in rule packs (std, rand, ring, chrono, upgrades, deprecated, edition, rusty, maintenance, ecosystem, features)
+    rules/*.toml                        # built-in rule packs (std, rand, ring, chrono, upgrades, deprecated, edition, rusty, walk, maintenance, ecosystem, features)
     tests/cli.rs                        # CLI integration tests
     tests/fixtures/                     # legacy/modern fixture pairs for rule validation
 
