@@ -345,7 +345,7 @@ fn walk_old_idioms_are_found_and_rewritten_to_code_that_compiles() {
         "walk/field-shorthand", "walk/static-lifetime", "walk/bare-trait-object", "walk/or-default",
         "walk/filter-map-identity", "walk/and-then-some", "walk/impl-lifetime-elision",
         "walk/rem-euclid", "walk/clamp", "walk/bool-then", "walk/duration-zero", "walk/repeat-n",
-        "walk/total-cmp",
+        "walk/total-cmp", "walk/error-description-impl", "walk/error-cause-impl",
     ] {
         assert!(found.iter().any(|(r, _, _)| r == rule), "missing {rule}: {found:#?}");
     }
@@ -364,14 +364,15 @@ fn walk_old_idioms_are_found_and_rewritten_to_code_that_compiles() {
     ] {
         assert!(src.contains(want), "missing `{want}` in:\n{src}");
     }
-    assert!(!src.contains("return x * 2"), "{src}");
+    assert!(!src.contains("return x * 2") && !src.contains("fn description"), "{src}");
+    assert!(src.contains("fn cause"), "cause needs a hand edit: {src}");
     let check = Command::new("cargo").arg("check").arg("--manifest-path").arg(dir.join("Cargo.toml")).output().unwrap();
     assert!(check.status.success(), "{}", String::from_utf8_lossy(&check.stderr));
     // What is left needs judgment: the rewrite is a suggestion only.
     let left = findings(&run_json(&dir.join("Cargo.toml"), &["--fail-on", "off", "--only", "Walk"]));
     // (The edition step is a manifest nudge, not a rewrite.)
     let left: Vec<_> = left.iter().map(|(r, _, _)| r.as_str()).filter(|r| !r.starts_with("walk/edition")).collect();
-    assert_eq!(left, ["walk/total-cmp"], "{left:#?}");
+    assert_eq!(left, ["walk/error-cause-impl", "walk/total-cmp"], "{left:#?}");
 }
 
 #[test]

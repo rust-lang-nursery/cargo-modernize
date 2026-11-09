@@ -599,6 +599,33 @@ message = "`fs::soft_link` is deprecated (1.1). Use `std::os::unix::fs::symlink`
 docs = "https://doc.rust-lang.org/std/fs/fn.soft_link.html"
 
 [[rule]]
+id = "walk/error-description-impl"
+kind = "pattern"
+pattern = "error-description-impl"
+category = "idiom"
+level = "warn"
+plan = "Walk: Rust 1.30–1.49"
+since_rust = "1.42"
+message = "`Error::description` is deprecated (1.42). Delete your `fn description`: `Display` already says what went wrong, and callers that still use `description()` get a default text."
+docs = "https://doc.rust-lang.org/std/error/trait.Error.html#method.description"
+[[rule.examples]]
+before = "impl std::error::Error for MyErr {\n    fn description(&self) -> &str {\n        \"my error\"\n    }\n}"
+after = "impl std::error::Error for MyErr {}"
+source = "the std docs for Error::description (deprecated since 1.42.0)"
+
+[[rule]]
+id = "walk/error-cause-impl"
+kind = "pattern"
+pattern = "error-cause-impl"
+category = "idiom"
+level = "warn"
+plan = "Walk: Rust 1.30–1.49"
+since_rust = "1.30"
+message = "`Error::cause` is deprecated (1.33). Write `fn source(&self) -> Option<&(dyn Error + 'static)>` instead. The return type is different, so check the body."
+suggestion = "fn source(&self) -> Option<&(dyn std::error::Error + 'static)> { … }"
+docs = "https://doc.rust-lang.org/std/error/trait.Error.html#method.source"
+
+[[rule]]
 id = "walk/error-cause"
 kind = "method"
 category = "idiom"

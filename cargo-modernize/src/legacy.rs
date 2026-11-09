@@ -600,6 +600,35 @@ impl<'a> Scanner<'a> {
         }
     }
 
+    /// `fn description` and `fn cause` written inside `impl std::error::Error for T`.
+    /// Both are deprecated: `description` (1.42) is replaced by `Display`, `cause` (1.33) by `source`.
+    pub fn legacy_error_impl(&mut self, i: &syn::ItemImpl) {
+        let Some((trait_path, _)) = &i.trait_ else {
+            return;
+        };
+        // Only the std trait: other traits are also named `Error` (serde's, for one).
+        let path = Expr::Path(syn::ExprPath { attrs: Vec::new(), qself: None, path: trait_path.clone() });
+        let is_std_error = self.resolve_expr_path(&path).is_some_and(|p| {
+            matches!(p.iter().map(String::as_str).collect::<Vec<_>>().as_slice(), ["std" | "core", "error", "Error"])
+        });
+        if !is_std_error {
+            return;
+        }
+        for item in &i.items {
+            let syn::ImplItem::Fn(f) = item else { continue };
+            match f.sig.ident.to_string().as_str() {
+                // Callers get a default message instead of ours, so this is a dangerous fix.
+                "description" => {
+                    let edits = vec![self.delete_lines(f.span().start(), f.span().end())];
+                    self.pattern("error-description-impl", f.sig.ident.span(), Some(edits));
+                }
+                // `source` returns `Option<&(dyn Error + 'static)>`: the signature changes too.
+                "cause" => self.pattern("error-cause-impl", f.sig.ident.span(), None),
+                _ => {}
+            }
+        }
+    }
+
     /// `impl<'a> Foo<'a>` → `impl Foo<'_>` when `'a` is named nowhere else (1.31).
     pub fn legacy_impl(&mut self, i: &syn::ItemImpl) {
         use syn::GenericParam;
