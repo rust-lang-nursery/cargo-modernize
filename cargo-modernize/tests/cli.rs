@@ -425,3 +425,25 @@ fn clean_scan_still_says_what_was_scanned() {
     assert!(v["coverage"]["files_scanned"].as_u64().unwrap() > 0, "{v:#}");
     assert_eq!(v["coverage"]["files_skipped"], 0);
 }
+
+#[test]
+fn edition_2018_step_previews_the_cleanup_and_hands_over_after_the_bump() {
+    // On edition 2015: the step, plus a preview of what it will let you delete (no fix yet).
+    let v = run_json(&fixture("walk-2015/Cargo.toml"), &["--fail-on", "off"]);
+    let f = findings(&v);
+    let rules: Vec<_> = f.iter().map(|(r, _, _)| r.as_str()).collect();
+    assert!(rules.contains(&"walk/edition-2018"), "{rules:?}");
+    assert_eq!(rules.iter().filter(|r| **r == "walk/extern-crate-2015").count(), 2, "log and libc, not core: {rules:?}");
+    assert_eq!(rules.iter().filter(|r| **r == "walk/macro-use-2015").count(), 1, "{rules:?}");
+    assert!(!rules.iter().any(|r| *r == "edition/extern-crate" || *r == "edition/macro-use"), "{rules:?}");
+    let preview: Vec<_> = v["packages"][0]["findings"].as_array().unwrap().iter().filter(|x| x["rule"].as_str().unwrap().ends_with("-2015")).collect();
+    assert!(preview.iter().all(|x| x["fix"].is_null() && x["level"] == "suggest"), "{preview:#?}");
+
+    // After the bump the real rules (with fixes) take over and the preview goes away.
+    let dir = copy_fixture("walk-2015");
+    let manifest = read(&dir, "Cargo.toml").replace("authors", "edition = \"2018\"\nauthors");
+    std::fs::write(dir.join("Cargo.toml"), manifest).unwrap();
+    let rules: Vec<String> = findings(&run_json(&dir.join("Cargo.toml"), &["--fail-on", "off"])).into_iter().map(|(r, _, _)| r).collect();
+    assert!(rules.iter().any(|r| r == "edition/extern-crate") && rules.iter().any(|r| r == "edition/macro-use"), "{rules:?}");
+    assert!(!rules.iter().any(|r| r.ends_with("-2015") || r == "walk/edition-2018"), "{rules:?}");
+}

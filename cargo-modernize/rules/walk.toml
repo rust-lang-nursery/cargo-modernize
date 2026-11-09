@@ -623,6 +623,33 @@ since_rust = "1.31"
 message = "This crate is on edition 2015. Run `cargo fix --edition`, set `edition = \"2018\"`, then `cargo fix --edition-idioms` to drop `extern crate` and `#[macro_use]`."
 docs = "https://doc.rust-lang.org/edition-guide/rust-2018/index.html"
 
+# What the 2018 step will let you delete. On edition 2015 these are still needed, so
+# there is no fix: they are a preview. `edition/extern-crate` and `edition/macro-use`
+# take over (with fixes) once the crate is on 2018.
+[[rule]]
+id = "walk/extern-crate-2015"
+kind = "extern-crate"
+category = "edition"
+level = "suggest"
+plan = "Walk: edition 2018"
+below_edition = 2018
+since_rust = "1.31"
+exclude = ["alloc", "core", "std", "test", "self", "proc_macro"]
+message = "After the move to edition 2018 this `extern crate` can go: dependencies are in scope without it. It is still needed on edition 2015."
+docs = "https://doc.rust-lang.org/edition-guide/rust-2018/path-changes.html"
+
+[[rule]]
+id = "walk/macro-use-2015"
+kind = "attribute"
+category = "edition"
+level = "suggest"
+plan = "Walk: edition 2018"
+below_edition = 2018
+since_rust = "1.31"
+names = ["macro_use"]
+message = "After the move to edition 2018, import macros with `use crate_name::macro_name;` instead of `#[macro_use]`. It is still needed on edition 2015."
+docs = "https://doc.rust-lang.org/edition-guide/rust-2018/macros/macro-changes.html"
+
 [[rule]]
 id = "walk/edition-2021"
 kind = "edition"
