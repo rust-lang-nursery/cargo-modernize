@@ -1,6 +1,7 @@
 mod config;
 mod ecosystem;
 mod fix;
+mod legacy;
 mod project;
 mod report;
 mod rewrite;
@@ -133,6 +134,16 @@ fn run(args: Args) -> Result<ExitCode> {
     }
 
     let ws = project::load(args.manifest_path.as_deref())?;
+    let skipped = scan::unanalyzed_crates(&ws.packages);
+    if !skipped.is_empty() {
+        let shown: Vec<_> = skipped.iter().take(5).map(|p| p.strip_prefix(&ws.root).unwrap_or(p).display().to_string()).collect();
+        eprintln!(
+            "warning: {} nested crate(s) are not workspace members and were not analyzed: {}{}\n  add them to `[workspace] members`, or run `cargo modernize --manifest-path <crate>/Cargo.toml` on each",
+            skipped.len(),
+            shown.join(", "),
+            if skipped.len() > shown.len() { ", …" } else { "" }
+        );
+    }
     let (config, scoped) = config::Config::discover(&ws.root)?;
     rules.extend(scoped);
     if args.list_rules {

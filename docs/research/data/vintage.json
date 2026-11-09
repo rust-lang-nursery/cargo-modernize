@@ -1,0 +1,30 @@
+{
+ "2015": {
+  "median_age": 0.1,
+  "fresh": 25,
+  "stale": 3,
+  "dens_fresh": 17.6,
+  "dens_stale": 1.7
+ },
+ "2018": {
+  "median_age": 0.3,
+  "fresh": 22,
+  "stale": 8,
+  "dens_fresh": 15.1,
+  "dens_stale": 12.3
+ },
+ "2021": {
+  "median_age": 0.5,
+  "fresh": 17,
+  "stale": 12,
+  "dens_fresh": 11.2,
+  "dens_stale": 13.2
+ },
+ "2024": {
+  "median_age": 0.3,
+  "fresh": 19,
+  "stale": 10,
+  "dens_fresh": 6.5,
+  "dens_stale": 12.7
+ }
+}

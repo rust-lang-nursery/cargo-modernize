@@ -1,0 +1,82 @@
+2015/seb-m__common.rs/src/sbuf.rs	366:expected one of: `for`, parentheses, `unsafe`, `fn`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime	pub fn from_fn(length: uint, op: |uint| -> T) -> SBuf<A, T> {
+2015/seb-m__common.rs/src/macros.rs	10:expected `;`	#[macro_export]
+2015/seb-m__common.rs/src/utils.rs	13:expected one of: `for`, parentheses, `unsafe`, `fn`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime	*val |= buf[i] as u32 << (8 * i);
+2015/vhbit__sherwood/src/lib.rs	5:expected identifier	extern crate "libforestdb-sys" as ffi;
+2015/Manishearth__rust-clippy/tests/compile-fail/escape_analysis.rs	18:expected an expression	let x = box A; //~ ERROR local variable
+2015/Manishearth__rust-clippy/tests/compile-fail/box_vec.rs	10:expected `,`	pub fn test2(foo: Box<Fn(Vec<u32>)>) { // pass if #31 is fixed
+2015/Manishearth__rust-clippy/src/lib.rs	78:expected an expression	reg.register_late_lint_pass(box types::TypePass);
+2015/bbodi__rust-voxlap/src/lib.rs	366:expected one of: `for`, parentheses, `unsafe`, `fn`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime	(self.a as i32 << 24) | (self.r as i32 << 16) | (self.g as i32 << 8) | (self.b as i32)
+2015/bbodi__rust-voxlap/src/c_api.rs	84:unexpected token, expected `]`	p: [point3d, ..2],
+2015/JeremyLetang__rust-portaudio/src/stream.rs	90:expected `;`	type CallbackFn = FnMut(*const libc::c_void,
+2015/rustbridge__neon/src/internal/value.rs	44:expected `:`	fn upcast_internal(T) -> Self;
+2015/tupshin__cassandra-rs/src/cassandra/compression.rs	1:expected `;`	pub type CassCompression {
+2015/JeremyLetang__ears/src/recorder.rs	92:expected `,`	task::spawn(proc() {
+2015/JeremyLetang__ears/src/sndfile.rs	259:expected an expression	let mut info = box SndInfo {
+2015/JeremyLetang__ears/src/sound.rs	28:expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces	use sound_data::{mod, SoundData};
+2015/JeremyLetang__ears/src/internal.rs	38:expected `;`	#[deriving(Clone)]
+2015/JeremyLetang__ears/src/listener.rs	89:unexpected token, expected `]`	pub fn set_position(position: [f32, ..3]) -> () {
+2015/JeremyLetang__ears/src/examples/many_sounds/main.rs	39:expected `,`	task::spawn(proc() {
+2015/JeremyLetang__ears/src/init.rs	104:expected `,`	spawn(proc() {
+2015/JeremyLetang__ears/src/audio_controller.rs	186:unexpected token, expected `]`	fn set_position(&mut self, position: [f32, ..3]) -> ();
+2015/JeremyLetang__ears/src/music.rs	96:expected an expression	Ok(file)    => box file,
+2015/kbknapp__clap-rs/src/args/arg_builder/option.rs	34:expected `,`	pub validator: Option<Rc<Fn(String) -> StdResult<(), String>>>,
+2015/kbknapp__clap-rs/src/args/arg_builder/flag.rs	186:expected `,`	fn validator(&self) -> Option<&Rc<Fn(String) -> StdResult<(), String>>> { None }
+2015/kbknapp__clap-rs/src/args/arg_builder/positional.rs	29:expected `,`	pub validator: Option<Rc<Fn(String) -> StdResult<(), String>>>,
+2015/kbknapp__clap-rs/src/args/any_arg.rs	11:expected `:`	fn is_set(&self, ArgSettings) -> bool;
+2015/kbknapp__clap-rs/src/args/arg.rs	95:expected `,`	pub validator: Option<Rc<Fn(String) -> Result<(), String>>>,
+2015/gtk-rs__gtk/src/signal.rs	97:expected `,`	extern "C" fn trampoline(func: &RefCell<Box<FnMut() -> Continue + 'static>>) -> gboolean {
+2018/rust-lang__rls/src/test/harness.rs	36:expected `!`	crate struct Environment {
+2018/rust-lang__rls/src/server/message.rs	296:expected identifier, found keyword `crate`	crate method: String,
+2018/rust-lang__rls/src/server/dispatch.rs	115:expected `!`	crate struct Dispatcher {
+2018/rust-lang__rls/src/server/io.rs	198:expected `!`	crate fn new() -> StdioOutput {
+2018/rust-lang__rls/src/build/cargo_plan.rs	48:expected `!`	crate type UnitKey = (PackageId, Target, CompileMode);
+2018/rust-lang__rls/src/build/plan.rs	23:expected `!`	crate trait BuildKey {
+2018/rust-lang__rls/src/build/external.rs	174:expected `!`	crate struct RawPlan {
+2018/rust-lang__rls/src/build/rustc.rs	62:expected `!`	crate fn rustc(
+2018/zonyitoo__coio-rs/src/coroutine.rs	106:expected `,`	callback: Box<FnBox()>,
+2018/zonyitoo__coio-rs/src/runtime/processor.rs	105:expected `,`	pub fn spawn_opts_imp(&mut self, f: Box<FnBox()>, opts: Options) {
+2018/zonyitoo__coio-rs/src/scheduler.rs	50:expected `;`	type RegisterCallback<'a> = &'a mut FnMut(&mut Poll, Token, ReadyStates) -> bool;
+2018/zonyitoo__coio-rs/src/sync/future/future.rs	56:expected identifier, found keyword `await`	pub fn await(&self) -> Result<To, Eo> {
+2018/zonyitoo__coio-rs/src/sync/future/cores/mod.rs	81:expected identifier, found keyword `await`	mod await;
+2018/zonyitoo__coio-rs/src/sync/future/cores/await.rs	39:expected identifier, found keyword `await`	pub fn await(&self) -> Option<Result<To, Eo>> {
+2018/unrust__unrust/src/world/processor.rs	106:expected `:`	fn apply_materials(&self, &Vec<Rc<Material>>) {}
+2018/unrust__unrust/src/world/type_watcher.rs	28:expected `:`	fn object_start(&self, _go: &Handle<GameObject>, _com: &Arc<Component>, &mut World) {}
+2018/unrust__unrust/src/world/actor.rs	11:expected `:`	fn start(&mut self, &mut GameObject, &mut World) {}
+2018/unrust__unrust/src/actors/first_person_camera.rs	32:expected `,`	handlers: Vec<(Movement, String, Box<Fn(&mut FirstPersonCamera, f64)>)>,
+2018/unrust__unrust/src/engine/core/scene_tree.rs	46:expected `,`	RefCell<Vec<Box<FnMut(ComponentEvent, &Rc<RefCell<GameObject>>, &Arc<Component>)>>>,
+2018/unrust__unrust/src/engine/asset/loader/prefab.rs	234:expected `,`	type MaterialBuilder = Box<Fn(&AssetSystem, ObjMaterial) -> Rc<Material>>;
+2018/unrust__unrust/src/engine/asset/loader/image.rs	212:expected `,`	let f0: Box<FnMut(u32) -> u32> = Box::new(|row_index: u32| -> u32 { row_index });
+2018/unrust__unrust/src/engine/asset/asset_database.rs	35:expected `,`	type PrefabHandler = Box<FnBox(AssetResult<loader::Prefab>)>;
+2018/garkimasera__rusted-ruins/common/src/pakutil.rs	40:expected `,`	fn walk_dir(dir: &Path, cb: &mut FnMut(Object), err_stack: &mut Vec<PakLoadingError>) {
+2018/garkimasera__rusted-ruins/rusted-ruins/src/game/mod.rs	197:expected `,`	YesNo { callback: Box<FnMut(&mut DoPlayerAction, bool)>, msg: Cow<'static, str> },
+2018/garkimasera__rusted-ruins/rusted-ruins/src/window/item_window.rs	16:expected `;`	pub type ActionCallback = FnMut(&mut DoPlayerAction, ItemLocation) -> DialogResult;
+2018/garkimasera__rusted-ruins/rusted-ruins/src/window/msg_dialog.rs	12:expected `,`	action_callback: Box<FnMut(&mut DoPlayerAction, u32) -> DialogResult + 'static>
+2018/Geal__nom/src/util.rs	669:expected `:`	fn convert(T) -> Self;
+2018/Geal__nom/src/macros.rs	1565:expected `,`	let f_true: Box<Fn(&'static [u8]) -> IResult<&[u8], Option<&[u8]>, CustomError>> = Box::new(closure!
+2018/Geal__nom/src/nom.rs	25:expected `,`	pub fn tag_cl<'a, 'b>(rec: &'a [u8]) -> Box<Fn(&'b [u8]) -> IResult<&'b [u8], &'b [u8]> + 'a> {
+2018/carllerche__mio/test/benchmark.rs	20:expected one of: `for`, parentheses, `unsafe`, `fn`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime	fn timed(label: &str, f: ||) {
+2018/indiscipline__zrtstr/src/main.rs	116:expected `,`	let comparator: Box<Fn(i32) -> bool> = if dither_threshold == 0 {
+2018/JohnBSmith__moss/src/object.rs	230:expected `,`	pub type MutableFn = Box<FnMut(&mut Env, &Object, &[Object])->FnResult>;
+2018/JohnBSmith__moss/src/objects/iterable.rs	138:expected `,`	let f: Box<FnMut(&mut Env,&Object,&[Object])->FnResult> = match r.b {
+2018/JohnBSmith__moss/src/modules/math-la.rs	484:expected `,`	operator: &Fn(&mut Env,&Object) -> FnResult,
+2018/JohnBSmith__moss/src/modules/la-enum.rs	267:expected `,`	f: &Fn(f64,f64)->f64
+2018/JohnBSmith__moss/src/modules/la.rs	352:expected `,`	f: &Fn(T,T)->T
+2018/ludat__hado-rs/src/lib.rs	29:expected `:`	fn ret(Self::Inner) -> Self;
+2018/intecture__api/core/src/remote.rs	49:expected `:`	fn exec<H: Host>(self, &H) -> ExecutableResult;
+2018/intecture__api/core/src/command/providers/mod.rs	25:expected `:`	fn exec(&self, &Handle, &[&str]) -> ExecutableResult;
+2018/intecture__api/core/src/service/providers/mod.rs	39:expected `:`	fn available(&Telemetry) -> Result<bool> where Self: Sized;
+2018/intecture__api/core/src/package/providers/mod.rs	40:expected `:`	fn installed(&self, &Handle, &str, &Os) -> ExecutableResult;
+2018/jhspetersson__fselect/src/searcher.rs	937:expected `,`	mode_func_boxed: &Fn(&Box<Metadata>) -> bool,
+2018/saresend__Gust/src/backend/traits.rs	16:expected `:`	fn set_color(&mut self, &str);
+2021/AlKass__polish/src/test_case.rs	18:expected `,`	pub exec: Box<Fn(&mut Logger) -> TestCaseStatus>,
+2021/brson__rust-sdl/src/sdl/start.rs	10:cannot parse string into token stream	#[cfg(any(target_os="win32", target_os="linux", target_os="freebsd")]
+2021/zonyitoo__coio-rs/src/coroutine.rs	106:expected `,`	callback: Box<FnBox()>,
+2021/zonyitoo__coio-rs/src/runtime/processor.rs	105:expected `,`	pub fn spawn_opts_imp(&mut self, f: Box<FnBox()>, opts: Options) {
+2021/zonyitoo__coio-rs/src/scheduler.rs	50:expected `;`	type RegisterCallback<'a> = &'a mut FnMut(&mut Poll, Token, ReadyStates) -> bool;
+2021/zonyitoo__coio-rs/src/sync/future/future.rs	56:expected identifier, found keyword `await`	pub fn await(&self) -> Result<To, Eo> {
+2021/zonyitoo__coio-rs/src/sync/future/cores/mod.rs	81:expected identifier, found keyword `await`	mod await;
+2021/zonyitoo__coio-rs/src/sync/future/cores/await.rs	39:expected identifier, found keyword `await`	pub fn await(&self) -> Option<Result<To, Eo>> {
+2021/lucidscape__corange-rs/src/engine.rs	93:expected `,`	pub fn run(event_handler:Option<&Fn(SDL_Event)>, update_handler:Option<&Fn(f64, *mut renderer)>) {
+2024/d-unsed__ruru/src/util.rs	61:expected `,`	let fnbox = Box::new(wrap_return) as Box<FnOnce() -> *const c_void>;
+2024/d-unsed__ruru/src/binding/vm.rs	105:expected `,`	let mut fnbox: Box<Box<FnMut() -> *const c_void>> =
+2024/d-unsed__ruru/src/binding/thread.rs	18:expected `,`	let fnbox = Box::new(func) as Box<FnOnce() -> R>;

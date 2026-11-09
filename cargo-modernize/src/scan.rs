@@ -43,6 +43,32 @@ pub const PATTERNS: &[&str] = &[
     "lazy-static",
     "crossbeam-scope",
     "addr-of",
+    // legacy.rs: idioms older than Rust 1.50
+    "len-zero",
+    "none-compare",
+    "rem-euclid",
+    "filter-next",
+    "map-flatten",
+    "filter-map-identity",
+    "cloned",
+    "copied",
+    "unwrap-or-default",
+    "or-default",
+    "and-then-some",
+    "clamp",
+    "repeat-n",
+    "total-cmp",
+    "duration-zero",
+    "redundant-pattern",
+    "bool-then",
+    "option-map-match",
+    "match-unwrap-or",
+    "while-let-loop",
+    "needless-return",
+    "field-shorthand",
+    "static-lifetime",
+    "bare-trait-object",
+    "impl-lifetime-elision",
 ];
 
 pub struct PackageReport {
@@ -310,6 +336,31 @@ pub fn scan_source(
             })
         })
         .collect()
+}
+
+/// Crates nested inside a package that `cargo metadata` doesn't list as workspace
+/// members. `source_files` leaves nested crates to be "analyzed on their own", so a
+/// crate that is not a member would otherwise be skipped without a word.
+pub fn unanalyzed_crates(packages: &[Package]) -> Vec<PathBuf> {
+    let members: HashSet<&Path> = packages.iter().map(|p| p.root.as_path()).collect();
+    let mut out = Vec::new();
+    for pkg in packages {
+        let walker = walkdir::WalkDir::new(&pkg.root).into_iter().filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            e.depth() == 0 || !(e.file_type().is_dir() && (name == "target" || name.starts_with('.')))
+        });
+        for e in walker.filter_map(|e| e.ok()) {
+            if e.depth() > 0
+                && e.file_type().is_dir()
+                && e.path().join("Cargo.toml").exists()
+                && !members.contains(e.path())
+                && !out.iter().any(|o: &PathBuf| e.path().starts_with(o))
+            {
+                out.push(e.path().to_path_buf());
+            }
+        }
+    }
+    out
 }
 
 fn source_files(root: &Path) -> Vec<PathBuf> {
@@ -998,6 +1049,21 @@ impl<'a> Scanner<'a> {
         }
     }
 
+    /// Like `pattern`, for a location given as line/column.
+    pub fn pattern_at(
+        &mut self,
+        name: &str,
+        start: LineColumn,
+        end: LineColumn,
+        edits: Option<Vec<Edit>>,
+    ) {
+        for i in self.indices(|r| r.kind == Kind::Pattern && r.pattern.as_deref() == Some(name)) {
+            if self.import_ok(self.rules[i].rule) {
+                self.hit(i, start, end, edits.clone(), None, None);
+            }
+        }
+    }
+
     /// Matches a path against pattern-based rules of the given kinds.
     fn check_path(
         &mut self,
@@ -1216,12 +1282,14 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
             self.receivers.insert((s.line, s.column));
         }
         self.method_patterns(m, &name);
+        self.legacy_method(m, &name);
         visit::visit_expr_method_call(self, m);
     }
 
     fn visit_expr_call(&mut self, c: &'ast syn::ExprCall) {
         self.check_call_replacements(c);
         self.call_patterns(c);
+        self.legacy_call(c);
         visit::visit_expr_call(self, c);
     }
 
@@ -1232,12 +1300,59 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
 
     fn visit_expr_match(&mut self, m: &'ast syn::ExprMatch) {
         self.match_patterns(m);
+        self.legacy_match(m);
         visit::visit_expr_match(self, m);
     }
 
     fn visit_expr_if(&mut self, i: &'ast syn::ExprIf) {
         self.if_patterns(i);
+        self.legacy_if(i);
         visit::visit_expr_if(self, i);
+    }
+
+    fn visit_expr_binary(&mut self, b: &'ast syn::ExprBinary) {
+        self.legacy_binary(b);
+        visit::visit_expr_binary(self, b);
+    }
+
+    fn visit_expr_loop(&mut self, l: &'ast syn::ExprLoop) {
+        self.legacy_loop(l);
+        visit::visit_expr_loop(self, l);
+    }
+
+    fn visit_expr_struct(&mut self, s: &'ast syn::ExprStruct) {
+        self.legacy_struct_expr(s);
+        visit::visit_expr_struct(self, s);
+    }
+
+    fn visit_pat_struct(&mut self, s: &'ast syn::PatStruct) {
+        self.legacy_struct_pat(s);
+        visit::visit_pat_struct(self, s);
+    }
+
+    fn visit_item_fn(&mut self, f: &'ast syn::ItemFn) {
+        self.legacy_fn(&f.block);
+        visit::visit_item_fn(self, f);
+    }
+
+    fn visit_impl_item_fn(&mut self, f: &'ast syn::ImplItemFn) {
+        self.legacy_fn(&f.block);
+        visit::visit_impl_item_fn(self, f);
+    }
+
+    fn visit_item_const(&mut self, c: &'ast syn::ItemConst) {
+        self.legacy_static_ty(&c.ty);
+        visit::visit_item_const(self, c);
+    }
+
+    fn visit_item_static(&mut self, c: &'ast syn::ItemStatic) {
+        self.legacy_static_ty(&c.ty);
+        visit::visit_item_static(self, c);
+    }
+
+    fn visit_type(&mut self, t: &'ast syn::Type) {
+        self.legacy_type(t);
+        visit::visit_type(self, t);
     }
 
     fn visit_expr_assign(&mut self, a: &'ast syn::ExprAssign) {
@@ -1247,6 +1362,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
 
     fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl) {
         self.impl_patterns(i);
+        self.legacy_impl(i);
         visit::visit_item_impl(self, i);
     }
 

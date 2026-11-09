@@ -1,0 +1,635 @@
+# The walk: small steps from Rust 1.50 to today. Every rule is named `walk/*` and
+# sits in a plan per release band, so a crate can move one band at a time:
+#
+#   cargo modernize --only "1.6" --diff --dangerous     # preview the 1.60–1.69 step
+#   "walk/*" = "off" in a `.modernize` file               # opt out of the whole walk
+#
+# These are data-only rules (paths, methods, macros, dependencies). Each is gated on
+# `since_rust`, so nothing fires that the crate's `rust-version` can't use yet; the
+# finding tells you the MSRV bump the step needs. Sources are the release notes at
+# https://github.com/rust-lang/rust/blob/master/RELEASES.md and the crates' own docs.
+# Idioms that need a structural detector (`let-else`, `is_some_and`, …) live in rusty.toml.
+
+# ── Rust 1.50–1.59 ──────────────────────────────────────────────────────────
+[[rule]]
+id = "walk/compare-and-swap"
+kind = "method"
+category = "idiom"
+level = "warn"
+plan = "Walk: Rust 1.50–1.59"
+names = ["compare_and_swap"]
+requires_import = ["std::sync::atomic", "core::sync::atomic"]
+message = "`Atomic*::compare_and_swap` is deprecated (1.50). `compare_exchange(current, new, success, failure)` returns a `Result` and lets the failure ordering differ."
+suggestion = "a.compare_exchange(current, new, Ordering::SeqCst, Ordering::SeqCst)"
+docs = "https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.compare_and_swap"
+[[rule.examples]]
+before = "let prev = flag.compare_and_swap(false, true, Ordering::SeqCst);"
+after = "let won = flag.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok();"
+source = "std docs for AtomicBool::compare_and_swap (deprecated since 1.50.0)"
+
+# ── Rust 1.60–1.69 ──────────────────────────────────────────────────────────
+[[rule]]
+id = "walk/os-raw-ffi"
+kind = "path"
+category = "rusty"
+plan = "Walk: Rust 1.60–1.69"
+paths = ["{std,core}::os::raw::{c_char,c_schar,c_uchar,c_short,c_ushort,c_int,c_uint,c_long,c_ulong,c_longlong,c_ulonglong,c_float,c_double}"]
+since_rust = "1.64"
+message = "The C type aliases live in `core::ffi` / `std::ffi` (1.64): `std::ffi::c_char`, `std::ffi::c_int`, … `std::os::raw` is the legacy spelling."
+suggestion = "use std::ffi::c_char;"
+docs = "https://blog.rust-lang.org/2022/09/22/Rust-1.64.0.html#c-compatible-ffi-types-in-core-and-alloc"
+
+[[rule]]
+id = "walk/futures-ready-macro"
+kind = "macro"
+category = "std"
+plan = "Walk: Rust 1.60–1.69"
+crate = "futures"
+names = ["ready"]
+since_rust = "1.64"
+message = "`futures::ready!` is `std::task::ready!` (1.64)."
+suggestion = "use std::task::ready;"
+docs = "https://doc.rust-lang.org/std/task/macro.ready.html"
+
+[[rule]]
+id = "walk/futures-future-fns"
+kind = "path"
+category = "std"
+plan = "Walk: Rust 1.60–1.69"
+paths = ["{futures,futures_util}::future::{ready,pending,poll_fn}"]
+since_rust = "1.64"
+message = "`ready`, `pending`, and `poll_fn` are in `std::future` (1.48, 1.48, 1.64). The types differ slightly, so check any use of `Ready::into_inner` before swapping."
+suggestion = "use std::future::{ready, pending, poll_fn};"
+docs = "https://doc.rust-lang.org/std/future/index.html"
+
+[[rule]]
+id = "walk/pin-mut"
+kind = "macro"
+category = "std"
+plan = "Walk: Rust 1.60–1.69"
+crate = "pin-utils"
+names = ["pin_mut"]
+since_rust = "1.68"
+message = "`pin_utils::pin_mut!(fut)` is `let mut fut = std::pin::pin!(fut);` (1.68)."
+suggestion = "let mut fut = std::pin::pin!(fut);"
+docs = "https://doc.rust-lang.org/std/pin/macro.pin.html"
+
+[[rule]]
+id = "walk/pin-utils-dep"
+kind = "dependency"
+category = "std"
+plan = "Walk: Rust 1.60–1.69"
+crate = "pin-utils"
+since_rust = "1.68"
+message = "`pin-utils` is mostly covered by `std::pin::pin!` (1.68). Drop it once the `pin_mut!` calls are gone."
+
+[[rule]]
+id = "walk/backtrace"
+kind = "path"
+category = "std"
+plan = "Walk: Rust 1.60–1.69"
+crate = "backtrace"
+paths = ["backtrace::Backtrace"]
+since_rust = "1.65"
+message = "`std::backtrace::Backtrace` (1.65) captures and prints backtraces. Keep the `backtrace` crate only if you walk individual frames or need to resolve symbols yourself."
+suggestion = "use std::backtrace::Backtrace;"
+docs = "https://doc.rust-lang.org/std/backtrace/struct.Backtrace.html"
+
+# ── Rust 1.70–1.79 ──────────────────────────────────────────────────────────
+[[rule]]
+id = "walk/lazycell"
+kind = "path"
+category = "std"
+plan = "Walk: Rust 1.70–1.79"
+paths = ["lazycell::{LazyCell,AtomicLazyCell}"]
+since_rust = "1.70"
+message = "`lazycell::LazyCell` is `std::cell::OnceCell` (1.70) and `AtomicLazyCell` is `std::sync::OnceLock`. `fill` becomes `set`, `borrow` becomes `get`."
+suggestion = "use std::cell::OnceCell;"
+docs = "https://doc.rust-lang.org/std/cell/struct.OnceCell.html"
+
+[[rule]]
+id = "walk/lazycell-dep"
+kind = "dependency"
+category = "std"
+plan = "Walk: Rust 1.70–1.79"
+crate = "lazycell"
+since_rust = "1.70"
+message = "`lazycell` is covered by `std::cell::OnceCell` and `std::sync::OnceLock` (1.70)."
+
+[[rule]]
+id = "walk/default-hasher"
+kind = "path"
+category = "rusty"
+plan = "Walk: Rust 1.70–1.79"
+paths = ["std::collections::hash_map::DefaultHasher"]
+since_rust = "1.76"
+suggestion = "use std::hash::DefaultHasher;"
+message = "`DefaultHasher` has its own home, `std::hash::DefaultHasher` (1.76), next to `Hasher` and `BuildHasher`."
+docs = "https://doc.rust-lang.org/std/hash/struct.DefaultHasher.html"
+
+[[rule]]
+id = "walk/random-state"
+kind = "path"
+category = "rusty"
+plan = "Walk: Rust 1.70–1.79"
+paths = ["std::collections::hash_map::RandomState"]
+since_rust = "1.76"
+suggestion = "use std::hash::RandomState;"
+message = "`RandomState` has its own home, `std::hash::RandomState` (1.76)."
+docs = "https://doc.rust-lang.org/std/hash/struct.RandomState.html"
+
+[[rule]]
+id = "walk/slice-group-by-dep"
+kind = "dependency"
+category = "std"
+plan = "Walk: Rust 1.70–1.79"
+crate = "slice-group-by"
+since_rust = "1.77"
+message = "`slice-group-by` is covered by `<[T]>::chunk_by` / `chunk_by_mut` (1.77)."
+docs = "https://doc.rust-lang.org/std/primitive.slice.html#method.chunk_by"
+
+# ── Rust 1.80–1.89 ──────────────────────────────────────────────────────────
+[[rule]]
+id = "walk/is-sorted-dep"
+kind = "dependency"
+category = "std"
+plan = "Walk: Rust 1.80–1.89"
+crate = "is_sorted"
+since_rust = "1.82"
+message = "`is_sorted` is covered by `Iterator::is_sorted`, `is_sorted_by`, and `is_sorted_by_key`, and by the same methods on slices (1.82)."
+docs = "https://doc.rust-lang.org/std/primitive.slice.html#method.is_sorted"
+
+[[rule]]
+id = "walk/is-sorted-import"
+remove_use = true
+kind = "path"
+category = "std"
+plan = "Walk: Rust 1.80–1.89"
+paths = ["is_sorted::IsSorted"]
+since_rust = "1.82"
+message = "`is_sorted::IsSorted` is unnecessary: `is_sorted` is an inherent method on slices and iterators (1.82)."
+
+[[rule]]
+id = "walk/isqrt"
+renames = { integer_sqrt = "isqrt" }
+kind = "method"
+category = "std"
+plan = "Walk: Rust 1.80–1.89"
+names = ["integer_sqrt"]
+requires_import = ["integer_sqrt"]
+since_rust = "1.84"
+message = "`IntegerSquareRoot::integer_sqrt` is the inherent `isqrt` on every integer type (1.84)."
+docs = "https://doc.rust-lang.org/std/primitive.u32.html#method.isqrt"
+
+[[rule]]
+id = "walk/future-prelude"
+fix = "safe"
+remove_use = true
+kind = "path"
+category = "rusty"
+plan = "Walk: Rust 1.80–1.89"
+paths = ["{std,core}::future::{Future,IntoFuture}"]
+min_edition = 2024
+message = "`Future` and `IntoFuture` are in the 2024 prelude, so the import can go."
+docs = "https://doc.rust-lang.org/edition-guide/rust-2024/prelude.html"
+
+[[rule]]
+id = "walk/if-chain-dep"
+kind = "dependency"
+category = "rusty"
+plan = "Walk: Rust 1.80–1.89"
+crate = "if_chain"
+min_edition = 2024
+since_rust = "1.88"
+message = "`if_chain!` is replaced by let chains (`if let Some(x) = a && x > 0 && let Ok(y) = b { … }`) in edition 2024 (Rust 1.88)."
+docs = "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/#let-chains"
+
+[[rule]]
+id = "walk/if-chain-macro"
+kind = "macro"
+category = "rusty"
+plan = "Walk: Rust 1.80–1.89"
+crate = "if_chain"
+names = ["if_chain"]
+min_edition = 2024
+since_rust = "1.88"
+message = "`if_chain! { if let … ; then { … } }` is one `if let … && … { … }` let chain in edition 2024 (Rust 1.88)."
+docs = "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/#let-chains"
+
+# ── Structural detectors from `src/legacy.rs`: idioms older than Rust 1.50 ──
+# Match syntax only, so none of these see types. The rewrites are `dangerous` unless
+# noted, and `--dangerous` runs `cargo check` and reverts anything that stops compiling.
+
+[[rule]]
+id = "walk/len-zero"
+kind = "pattern"
+pattern = "len-zero"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`x.len() == 0` is `x.is_empty()`; `x.len() > 0` is `!x.is_empty()`. Collections, strings, and slices all have `is_empty`."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#len_zero"
+[[rule.examples]]
+before = "if v.len() == 0 { return; }"
+after = "if v.is_empty() { return; }"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/none-compare"
+kind = "pattern"
+pattern = "none-compare"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`x == None` is `x.is_none()` (and `x != None` is `x.is_some()`). It also drops the `PartialEq` bound on the payload."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#partialeq_to_none"
+[[rule.examples]]
+before = "if opt == None { … }"
+after = "if opt.is_none() { … }"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/redundant-pattern"
+kind = "pattern"
+pattern = "redundant-pattern"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`if let Some(_) = x` is `if x.is_some()` (likewise `Ok(_)`, `Err(_)`, `None`). Check that no lock guard or other temporary in `x` needs to live through the body."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#redundant_pattern_matching"
+[[rule.examples]]
+before = "if let Some(_) = map.get(&k) { … }"
+after = "if map.get(&k).is_some() { … }"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/needless-return"
+kind = "pattern"
+pattern = "needless-return"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "A trailing `return x;` is just `x`: the last expression of a function is its value."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#needless_return"
+[[rule.examples]]
+before = "fn double(x: u32) -> u32 {\n    return x * 2;\n}"
+after = "fn double(x: u32) -> u32 {\n    x * 2\n}"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/filter-next"
+kind = "pattern"
+pattern = "filter-next"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`.filter(p).next()` is `.find(p)`."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#filter_next"
+[[rule.examples]]
+before = "it.filter(|x| x.is_ok()).next()"
+after = "it.find(|x| x.is_ok())"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/map-flatten"
+kind = "pattern"
+pattern = "map-flatten"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`.map(f).flatten()` is `.flat_map(f)` on an iterator, or `.and_then(f)` on an `Option`/`Result`."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#map_flatten"
+[[rule.examples]]
+before = "lines.map(|l| l.split(',')).flatten()"
+after = "lines.flat_map(|l| l.split(','))"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/while-let-loop"
+kind = "pattern"
+pattern = "while-let-loop"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`loop { match it.next() { Some(x) => …, None => break } }` is `while let Some(x) = it.next() { … }`."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#while_let_loop"
+[[rule.examples]]
+before = "loop {\n    match stack.pop() {\n        Some(x) => visit(x),\n        None => break,\n    }\n}"
+after = "while let Some(x) = stack.pop() {\n    visit(x);\n}"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/option-map-match"
+kind = "pattern"
+pattern = "option-map-match"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`match o { Some(x) => Some(f(x)), None => None }` is `o.map(|x| f(x))`."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#manual_map"
+[[rule.examples]]
+before = "match o {\n    Some(x) => Some(x + 1),\n    None => None,\n}"
+after = "o.map(|x| x + 1)"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/match-unwrap-or"
+kind = "pattern"
+pattern = "match-unwrap-or"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`match o { Some(x) => x, None => default }` is `o.unwrap_or(default)` (or `unwrap_or_default()`)."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#manual_unwrap_or"
+[[rule.examples]]
+before = "match o {\n    Some(n) => n,\n    None => 0,\n}"
+after = "o.unwrap_or(0)"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/cloned"
+kind = "pattern"
+pattern = "cloned"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`.map(|x| x.clone())` is `.cloned()` on an iterator or `Option<&T>`."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#map_clone"
+[[rule.examples]]
+before = "names.iter().map(|n| n.clone())"
+after = "names.iter().cloned()"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/unwrap-or-default"
+kind = "pattern"
+pattern = "unwrap-or-default"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+since_rust = "1.16"
+message = "`unwrap_or(Vec::new())`, `unwrap_or_else(String::new)`, and the like are `unwrap_or_default()` (1.16)."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#unwrap_or_default"
+[[rule.examples]]
+before = "opt.unwrap_or_else(Vec::new)"
+after = "opt.unwrap_or_default()"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/field-shorthand"
+fix = "safe"
+kind = "pattern"
+pattern = "field-shorthand"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+since_rust = "1.17"
+message = "`Foo { a: a }` is `Foo { a }` (field init shorthand, 1.17); patterns `Foo { a: a }` are `Foo { a }` too."
+docs = "https://blog.rust-lang.org/2017/04/27/Rust-1.17.0.html#language"
+[[rule.examples]]
+before = "Config { name: name, port: port }"
+after = "Config { name, port }"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/static-lifetime"
+fix = "safe"
+kind = "pattern"
+pattern = "static-lifetime"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+since_rust = "1.17"
+message = "`const`/`static` items elide `'static` (1.17): `&'static str` is `&str`."
+docs = "https://blog.rust-lang.org/2017/04/27/Rust-1.17.0.html#language"
+[[rule.examples]]
+before = "const NAMES: &'static [&'static str] = &[\"a\", \"b\"];"
+after = "const NAMES: &[&str] = &[\"a\", \"b\"];"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/bare-trait-object"
+fix = "safe"
+kind = "pattern"
+pattern = "bare-trait-object"
+category = "idiom"
+level = "warn"
+plan = "Walk: Rust 1.0–1.29"
+since_rust = "1.27"
+below_edition = 2021
+message = "Trait objects need `dyn` (1.27): `Box<dyn Trait + Send>`. Bare trait objects are a hard error in edition 2021. Only the `Trait + Send` form is detected: a lone `Box<Trait>` can't be told from a type, and bare `Fn(…)` types don't parse (such files are skipped with a warning)."
+docs = "https://doc.rust-lang.org/edition-guide/rust-2021/warnings-promoted-to-error.html"
+[[rule.examples]]
+before = "handlers: Vec<Box<Handler + Send>>,"
+after = "handlers: Vec<Box<dyn Handler + Send>>,"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/or-default"
+kind = "pattern"
+pattern = "or-default"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+since_rust = "1.28"
+message = "`entry(k).or_insert_with(Vec::new)` and `or_insert(0)` are `entry(k).or_default()` (1.28)."
+docs = "https://doc.rust-lang.org/std/collections/hash_map/enum.Entry.html#method.or_default"
+[[rule.examples]]
+before = "*counts.entry(word).or_insert(0) += 1;"
+after = "*counts.entry(word).or_default() += 1;"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/filter-map-identity"
+kind = "pattern"
+pattern = "filter-map-identity"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+since_rust = "1.29"
+message = "`.filter_map(|x| x)` is `.flatten()` (1.29)."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#filter_map_identity"
+[[rule.examples]]
+before = "results.into_iter().filter_map(|r| r)"
+after = "results.into_iter().flatten()"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/and-then-some"
+kind = "pattern"
+pattern = "and-then-some"
+category = "rusty"
+plan = "Walk: Rust 1.0–1.29"
+message = "`.and_then(|x| Some(f(x)))` is `.map(|x| f(x))`."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#bind_instead_of_map"
+[[rule.examples]]
+before = "opt.and_then(|x| Some(x + 1))"
+after = "opt.map(|x| x + 1)"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/impl-lifetime-elision"
+kind = "pattern"
+pattern = "impl-lifetime-elision"
+category = "rusty"
+plan = "Walk: Rust 1.30–1.49"
+since_rust = "1.31"
+message = "`impl<'a> Foo<'a>` is `impl Foo<'_>` when `'a` is named nowhere else (1.31)."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#needless_lifetimes"
+[[rule.examples]]
+before = "impl<'a> fmt::Display for Token<'a> {"
+after = "impl fmt::Display for Token<'_> {"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/copied"
+kind = "pattern"
+pattern = "copied"
+category = "rusty"
+plan = "Walk: Rust 1.30–1.49"
+since_rust = "1.36"
+message = "`.map(|x| *x)` and `.map(|&x| x)` are `.copied()` (1.36; `Option::copied` is 1.35)."
+docs = "https://rust-lang.github.io/rust-clippy/master/index.html#map_clone"
+[[rule.examples]]
+before = "nums.iter().map(|&n| n)"
+after = "nums.iter().copied()"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/rem-euclid"
+kind = "pattern"
+pattern = "rem-euclid"
+category = "rusty"
+plan = "Walk: Rust 1.30–1.49"
+since_rust = "1.38"
+message = "`((x % n) + n) % n` is `x.rem_euclid(n)` (1.38)."
+docs = "https://doc.rust-lang.org/std/primitive.i32.html#method.rem_euclid"
+[[rule.examples]]
+before = "((idx % len) + len) % len"
+after = "idx.rem_euclid(len)"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/clamp"
+kind = "pattern"
+pattern = "clamp"
+category = "rusty"
+plan = "Walk: Rust 1.50–1.59"
+since_rust = "1.50"
+message = "`x.max(lo).min(hi)` is `x.clamp(lo, hi)` (1.50). `clamp` panics if `lo > hi`, and treats a NaN `x` as NaN."
+docs = "https://doc.rust-lang.org/std/cmp/trait.Ord.html#method.clamp"
+[[rule.examples]]
+before = "level.max(0).min(10)"
+after = "level.clamp(0, 10)"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/bool-then"
+kind = "pattern"
+pattern = "bool-then"
+category = "rusty"
+plan = "Walk: Rust 1.50–1.59"
+since_rust = "1.50"
+message = "`if c { Some(x) } else { None }` is `c.then(|| x)` (1.50)."
+docs = "https://doc.rust-lang.org/std/primitive.bool.html#method.then"
+[[rule.examples]]
+before = "if ready { Some(compute()) } else { None }"
+after = "ready.then(|| compute())"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/duration-zero"
+kind = "pattern"
+pattern = "duration-zero"
+category = "rusty"
+plan = "Walk: Rust 1.50–1.59"
+since_rust = "1.53"
+message = "`Duration::from_secs(0)` and `Duration::new(0, 0)` are `Duration::ZERO` (1.53)."
+docs = "https://doc.rust-lang.org/std/time/struct.Duration.html#associatedconstant.ZERO"
+[[rule.examples]]
+before = "let mut total = Duration::from_secs(0);"
+after = "let mut total = Duration::ZERO;"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/total-cmp"
+kind = "pattern"
+pattern = "total-cmp"
+category = "rusty"
+plan = "Walk: Rust 1.60–1.69"
+since_rust = "1.62"
+message = "`a.partial_cmp(b).unwrap()` panics on NaN. `f64::total_cmp` (1.62) is a total order: `v.sort_by(f64::total_cmp)`. NaN sorts last and `-0.0` before `0.0`, so check that is what you want."
+docs = "https://doc.rust-lang.org/std/primitive.f64.html#method.total_cmp"
+[[rule.examples]]
+before = "v.sort_by(|a, b| a.partial_cmp(b).unwrap());"
+after = "v.sort_by(f64::total_cmp);"
+source = "the idiom as clippy documents it (see docs)"
+
+[[rule]]
+id = "walk/repeat-n"
+kind = "pattern"
+pattern = "repeat-n"
+category = "rusty"
+plan = "Walk: Rust 1.80–1.89"
+since_rust = "1.82"
+message = "`iter::repeat(x).take(n)` is `iter::repeat_n(x, n)` (1.82). It knows its length and moves `x` into the last item instead of cloning it."
+docs = "https://doc.rust-lang.org/std/iter/fn.repeat_n.html"
+[[rule.examples]]
+before = "std::iter::repeat(0u8).take(n)"
+after = "std::iter::repeat_n(0u8, n)"
+source = "the idiom as clippy documents it (see docs)"
+
+# ── Deprecated std APIs from the 1.x era ────────────────────────────────────
+[[rule]]
+id = "walk/sleep-ms"
+kind = "path"
+category = "idiom"
+level = "warn"
+plan = "Walk: Rust 1.0–1.29"
+paths = ["std::thread::sleep_ms"]
+message = "`thread::sleep_ms` is deprecated (1.6). Use `thread::sleep(Duration::from_millis(ms))`."
+suggestion = "std::thread::sleep(std::time::Duration::from_millis(ms))"
+docs = "https://doc.rust-lang.org/std/thread/fn.sleep_ms.html"
+
+[[rule]]
+id = "walk/lines-any"
+kind = "method"
+category = "idiom"
+level = "warn"
+plan = "Walk: Rust 1.0–1.29"
+names = ["lines_any"]
+renames = { lines_any = "lines" }
+message = "`str::lines_any` is deprecated (1.4): `lines` handles `\\r\\n` too."
+suggestion = "text.lines()"
+docs = "https://doc.rust-lang.org/std/primitive.str.html#method.lines_any"
+
+[[rule]]
+id = "walk/soft-link"
+kind = "path"
+category = "idiom"
+level = "warn"
+plan = "Walk: Rust 1.0–1.29"
+paths = ["std::fs::soft_link"]
+message = "`fs::soft_link` is deprecated (1.1). Use `std::os::unix::fs::symlink` or `std::os::windows::fs::{symlink_file, symlink_dir}`."
+docs = "https://doc.rust-lang.org/std/fs/fn.soft_link.html"
+
+[[rule]]
+id = "walk/error-cause"
+kind = "method"
+category = "idiom"
+level = "warn"
+plan = "Walk: Rust 1.30–1.49"
+names = ["cause"]
+requires_import = ["std::error::Error"]
+message = "`Error::cause` is deprecated (1.33). Implement and call `Error::source`, which returns `&(dyn Error + 'static)` so callers can downcast."
+suggestion = "err.source()"
+docs = "https://doc.rust-lang.org/std/error/trait.Error.html#method.cause"
+
+# ── Editions, one step at a time ────────────────────────────────────────────
+# `edition/2024` jumps straight to the newest edition. These two give the intermediate
+# steps (found by the ecosystem study: 27 of 30 sampled 2018-era crates were still on 2015).
+[[rule]]
+id = "walk/edition-2018"
+kind = "edition"
+category = "edition"
+plan = "Walk: edition 2018"
+below_edition = 2018
+since_rust = "1.31"
+message = "This crate is on edition 2015. Run `cargo fix --edition`, set `edition = \"2018\"`, then `cargo fix --edition-idioms` to drop `extern crate` and `#[macro_use]`."
+docs = "https://doc.rust-lang.org/edition-guide/rust-2018/index.html"
+
+[[rule]]
+id = "walk/edition-2021"
+kind = "edition"
+category = "edition"
+plan = "Walk: edition 2021"
+min_edition = 2018
+below_edition = 2021
+since_rust = "1.56"
+message = "This crate is on edition 2018. Run `cargo fix --edition`, then set `edition = \"2021\"`: closures capture disjoint fields, arrays iterate by value, and `TryFrom`/`TryInto`/`FromIterator` join the prelude."
+docs = "https://doc.rust-lang.org/edition-guide/rust-2021/index.html"

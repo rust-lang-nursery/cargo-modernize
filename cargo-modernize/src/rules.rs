@@ -296,6 +296,7 @@ const BUILTIN: &[(&str, &str)] = &[
     ("chrono.toml", include_str!("../rules/chrono.toml")),
     ("upgrades.toml", include_str!("../rules/upgrades.toml")),
     ("rusty.toml", include_str!("../rules/rusty.toml")),
+    ("walk.toml", include_str!("../rules/walk.toml")),
     (
         "maintenance.toml",
         include_str!("../rules/maintenance.toml"),

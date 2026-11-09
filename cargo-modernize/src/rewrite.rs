@@ -777,7 +777,7 @@ fn is_ok_unit(e: &Expr) -> bool {
     matches!(e, Expr::Call(c) if path_ends_with(&c.func, &["Ok"]) && matches!(c.args.first(), Some(Expr::Tuple(t)) if t.elems.is_empty()))
 }
 
-fn is_diverging(e: &Expr) -> bool {
+pub(crate) fn is_diverging(e: &Expr) -> bool {
     match e {
         Expr::Return(_) | Expr::Continue(_) | Expr::Break(_) => true,
         Expr::Macro(m) => is_diverging_macro(&m.mac),

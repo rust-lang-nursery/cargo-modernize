@@ -1,0 +1,871 @@
+{
+ "2018": {
+  "ansi_term": {
+   "status": "unmaintained",
+   "rules": [
+    "deprecated/ansi_term"
+   ]
+  },
+  "base64": {
+   "status": null,
+   "rules": [
+    "upgrade/base64-dep",
+    "upgrade/base64-engine"
+   ]
+  },
+  "bitflags": {
+   "status": null,
+   "rules": [
+    "upgrade/bitflags-2"
+   ]
+  },
+  "byteorder": {
+   "status": "at-risk",
+   "rules": [
+    "std/byteorder"
+   ]
+  },
+  "cc": {
+   "status": null,
+   "rules": []
+  },
+  "chrono": {
+   "status": null,
+   "rules": [
+    "chrono/date-type",
+    "chrono/naive-from-timestamp",
+    "chrono/panicking-ctors",
+    "chrono/timezone-ymd"
+   ]
+  },
+  "clap": {
+   "status": null,
+   "rules": [
+    "upgrade/clap-4",
+    "upgrade/clap-app"
+   ]
+  },
+  "crossbeam": {
+   "status": null,
+   "rules": []
+  },
+  "csv": {
+   "status": null,
+   "rules": []
+  },
+  "data-encoding": {
+   "status": null,
+   "rules": []
+  },
+  "env_logger": {
+   "status": null,
+   "rules": []
+  },
+  "error-chain": {
+   "status": null,
+   "rules": [
+    "deprecated/error-chain",
+    "deprecated/error-chain-macro"
+   ]
+  },
+  "flate2": {
+   "status": null,
+   "rules": []
+  },
+  "glob": {
+   "status": null,
+   "rules": []
+  },
+  "image": {
+   "status": null,
+   "rules": []
+  },
+  "lazy_static": {
+   "status": "archived",
+   "rules": [
+    "std/lazy_static-dep"
+   ]
+  },
+  "log": {
+   "status": null,
+   "rules": []
+  },
+  "log4rs": {
+   "status": null,
+   "rules": []
+  },
+  "memmap": {
+   "status": "unmaintained",
+   "rules": [
+    "deprecated/memmap"
+   ]
+  },
+  "mime": {
+   "status": "at-risk",
+   "rules": []
+  },
+  "ndarray": {
+   "status": null,
+   "rules": []
+  },
+  "num": {
+   "status": null,
+   "rules": []
+  },
+  "num_cpus": {
+   "status": null,
+   "rules": [
+    "std/num_cpus",
+    "std/num_cpus-dep"
+   ]
+  },
+  "petgraph": {
+   "status": null,
+   "rules": []
+  },
+  "postgres": {
+   "status": null,
+   "rules": []
+  },
+  "rand": {
+   "status": null,
+   "rules": [
+    "rand/choose_multiple",
+    "rand/choose_multiple_array",
+    "rand/choose_multiple_fill",
+    "rand/choose_multiple_weighted",
+    "rand/dist-string",
+    "rand/distributions",
+    "rand/from_entropy",
+    "rand/gen",
+    "rand/gen_bool",
+    "rand/gen_range",
+    "rand/gen_ratio",
+    "rand/os-rng",
+    "rand/reseeding-rng",
+    "rand/rng-core",
+    "rand/rng-trait",
+    "rand/slice-choose-iter",
+    "rand/standard",
+    "rand/thread_rng",
+    "rand/uniform-result",
+    "rand/upgrade",
+    "rand/weighted"
+   ]
+  },
+  "rayon": {
+   "status": null,
+   "rules": []
+  },
+  "regex": {
+   "status": null,
+   "rules": []
+  },
+  "reqwest": {
+   "status": null,
+   "rules": []
+  },
+  "ring": {
+   "status": "unmaintained",
+   "rules": [
+    "ring/constant-time",
+    "ring/ecdsa-rng-arg",
+    "ring/public-modulus-len",
+    "ring/test-module",
+    "ring/upgrade"
+   ]
+  },
+  "rusqlite": {
+   "status": null,
+   "rules": []
+  },
+  "same-file": {
+   "status": null,
+   "rules": []
+  },
+  "select": {
+   "status": null,
+   "rules": []
+  },
+  "semver": {
+   "status": null,
+   "rules": []
+  },
+  "serde": {
+   "status": null,
+   "rules": []
+  },
+  "serde_derive": {
+   "status": null,
+   "rules": []
+  },
+  "serde_json": {
+   "status": null,
+   "rules": []
+  },
+  "skeptic": {
+   "status": null,
+   "rules": []
+  },
+  "syslog": {
+   "status": null,
+   "rules": []
+  },
+  "tar": {
+   "status": null,
+   "rules": []
+  },
+  "tempdir": {
+   "status": "unmaintained",
+   "rules": [
+    "deprecated/tempdir",
+    "deprecated/tempdir-path"
+   ]
+  },
+  "threadpool": {
+   "status": null,
+   "rules": []
+  },
+  "toml": {
+   "status": null,
+   "rules": []
+  },
+  "url": {
+   "status": null,
+   "rules": []
+  },
+  "walkdir": {
+   "status": null,
+   "rules": []
+  }
+ },
+ "2021": {
+  "ansi_term": {
+   "status": "unmaintained",
+   "rules": [
+    "deprecated/ansi_term"
+   ]
+  },
+  "approx": {
+   "status": null,
+   "rules": []
+  },
+  "base64": {
+   "status": null,
+   "rules": [
+    "upgrade/base64-dep",
+    "upgrade/base64-engine"
+   ]
+  },
+  "bitflags": {
+   "status": null,
+   "rules": [
+    "upgrade/bitflags-2"
+   ]
+  },
+  "byteorder": {
+   "status": "at-risk",
+   "rules": [
+    "std/byteorder"
+   ]
+  },
+  "cc": {
+   "status": null,
+   "rules": []
+  },
+  "chrono": {
+   "status": null,
+   "rules": [
+    "chrono/date-type",
+    "chrono/naive-from-timestamp",
+    "chrono/panicking-ctors",
+    "chrono/timezone-ymd"
+   ]
+  },
+  "clap": {
+   "status": null,
+   "rules": [
+    "upgrade/clap-4",
+    "upgrade/clap-app"
+   ]
+  },
+  "crossbeam": {
+   "status": null,
+   "rules": []
+  },
+  "crossbeam-channel": {
+   "status": null,
+   "rules": []
+  },
+  "csv": {
+   "status": null,
+   "rules": []
+  },
+  "data-encoding": {
+   "status": null,
+   "rules": []
+  },
+  "env_logger": {
+   "status": null,
+   "rules": []
+  },
+  "error-chain": {
+   "status": null,
+   "rules": [
+    "deprecated/error-chain",
+    "deprecated/error-chain-macro"
+   ]
+  },
+  "flate2": {
+   "status": null,
+   "rules": []
+  },
+  "glob": {
+   "status": null,
+   "rules": []
+  },
+  "image": {
+   "status": null,
+   "rules": []
+  },
+  "lazy_static": {
+   "status": "archived",
+   "rules": [
+    "std/lazy_static-dep"
+   ]
+  },
+  "log": {
+   "status": null,
+   "rules": []
+  },
+  "log4rs": {
+   "status": null,
+   "rules": []
+  },
+  "memmap": {
+   "status": "unmaintained",
+   "rules": [
+    "deprecated/memmap"
+   ]
+  },
+  "mime": {
+   "status": "at-risk",
+   "rules": []
+  },
+  "nalgebra": {
+   "status": null,
+   "rules": []
+  },
+  "ndarray": {
+   "status": null,
+   "rules": []
+  },
+  "num": {
+   "status": null,
+   "rules": []
+  },
+  "num_cpus": {
+   "status": null,
+   "rules": [
+    "std/num_cpus",
+    "std/num_cpus-dep"
+   ]
+  },
+  "percent-encoding": {
+   "status": null,
+   "rules": []
+  },
+  "petgraph": {
+   "status": null,
+   "rules": []
+  },
+  "postgres": {
+   "status": null,
+   "rules": []
+  },
+  "rand": {
+   "status": null,
+   "rules": [
+    "rand/choose_multiple",
+    "rand/choose_multiple_array",
+    "rand/choose_multiple_fill",
+    "rand/choose_multiple_weighted",
+    "rand/dist-string",
+    "rand/distributions",
+    "rand/from_entropy",
+    "rand/gen",
+    "rand/gen_bool",
+    "rand/gen_range",
+    "rand/gen_ratio",
+    "rand/os-rng",
+    "rand/reseeding-rng",
+    "rand/rng-core",
+    "rand/rng-trait",
+    "rand/slice-choose-iter",
+    "rand/standard",
+    "rand/thread_rng",
+    "rand/uniform-result",
+    "rand/upgrade",
+    "rand/weighted"
+   ]
+  },
+  "rand_distr": {
+   "status": null,
+   "rules": []
+  },
+  "rayon": {
+   "status": null,
+   "rules": []
+  },
+  "regex": {
+   "status": null,
+   "rules": []
+  },
+  "reqwest": {
+   "status": null,
+   "rules": []
+  },
+  "ring": {
+   "status": "unmaintained",
+   "rules": [
+    "ring/constant-time",
+    "ring/ecdsa-rng-arg",
+    "ring/public-modulus-len",
+    "ring/test-module",
+    "ring/upgrade"
+   ]
+  },
+  "rusqlite": {
+   "status": null,
+   "rules": []
+  },
+  "same-file": {
+   "status": null,
+   "rules": []
+  },
+  "select": {
+   "status": null,
+   "rules": []
+  },
+  "semver": {
+   "status": null,
+   "rules": []
+  },
+  "serde": {
+   "status": null,
+   "rules": []
+  },
+  "serde_derive": {
+   "status": null,
+   "rules": []
+  },
+  "serde_json": {
+   "status": null,
+   "rules": []
+  },
+  "skeptic": {
+   "status": null,
+   "rules": []
+  },
+  "syslog": {
+   "status": null,
+   "rules": []
+  },
+  "tar": {
+   "status": null,
+   "rules": []
+  },
+  "tempfile": {
+   "status": null,
+   "rules": []
+  },
+  "threadpool": {
+   "status": null,
+   "rules": []
+  },
+  "tokio": {
+   "status": null,
+   "rules": [
+    "upgrade/tokio-1",
+    "upgrade/tokio-delay_for",
+    "upgrade/tokio-delay_until",
+    "upgrade/tokio-scheduler"
+   ]
+  },
+  "toml": {
+   "status": null,
+   "rules": []
+  },
+  "unicode-segmentation": {
+   "status": null,
+   "rules": []
+  },
+  "url": {
+   "status": null,
+   "rules": []
+  },
+  "walkdir": {
+   "status": null,
+   "rules": []
+  }
+ },
+ "2024": {
+  "ansi_term": {
+   "status": "unmaintained",
+   "rules": [
+    "deprecated/ansi_term"
+   ]
+  },
+  "approx": {
+   "status": null,
+   "rules": []
+  },
+  "base64": {
+   "status": null,
+   "rules": [
+    "upgrade/base64-dep",
+    "upgrade/base64-engine"
+   ]
+  },
+  "bitflags": {
+   "status": null,
+   "rules": [
+    "upgrade/bitflags-2"
+   ]
+  },
+  "byteorder": {
+   "status": "at-risk",
+   "rules": [
+    "std/byteorder"
+   ]
+  },
+  "cc": {
+   "status": null,
+   "rules": []
+  },
+  "chrono": {
+   "status": null,
+   "rules": [
+    "chrono/date-type",
+    "chrono/naive-from-timestamp",
+    "chrono/panicking-ctors",
+    "chrono/timezone-ymd"
+   ]
+  },
+  "clap": {
+   "status": null,
+   "rules": [
+    "upgrade/clap-4",
+    "upgrade/clap-app"
+   ]
+  },
+  "crossbeam": {
+   "status": null,
+   "rules": []
+  },
+  "crossbeam-channel": {
+   "status": null,
+   "rules": []
+  },
+  "csv": {
+   "status": null,
+   "rules": []
+  },
+  "data-encoding": {
+   "status": null,
+   "rules": []
+  },
+  "env_logger": {
+   "status": null,
+   "rules": []
+  },
+  "flate2": {
+   "status": null,
+   "rules": []
+  },
+  "glob": {
+   "status": null,
+   "rules": []
+  },
+  "image": {
+   "status": null,
+   "rules": []
+  },
+  "lazy_static": {
+   "status": "archived",
+   "rules": [
+    "std/lazy_static-dep"
+   ]
+  },
+  "log": {
+   "status": null,
+   "rules": []
+  },
+  "log4rs": {
+   "status": null,
+   "rules": []
+  },
+  "memmap": {
+   "status": "unmaintained",
+   "rules": [
+    "deprecated/memmap"
+   ]
+  },
+  "mime": {
+   "status": "at-risk",
+   "rules": []
+  },
+  "nalgebra": {
+   "status": null,
+   "rules": []
+  },
+  "ndarray": {
+   "status": null,
+   "rules": []
+  },
+  "num": {
+   "status": null,
+   "rules": []
+  },
+  "num_cpus": {
+   "status": null,
+   "rules": [
+    "std/num_cpus",
+    "std/num_cpus-dep"
+   ]
+  },
+  "percent-encoding": {
+   "status": null,
+   "rules": []
+  },
+  "petgraph": {
+   "status": null,
+   "rules": []
+  },
+  "postgres": {
+   "status": null,
+   "rules": []
+  },
+  "rand": {
+   "status": null,
+   "rules": [
+    "rand/choose_multiple",
+    "rand/choose_multiple_array",
+    "rand/choose_multiple_fill",
+    "rand/choose_multiple_weighted",
+    "rand/dist-string",
+    "rand/distributions",
+    "rand/from_entropy",
+    "rand/gen",
+    "rand/gen_bool",
+    "rand/gen_range",
+    "rand/gen_ratio",
+    "rand/os-rng",
+    "rand/reseeding-rng",
+    "rand/rng-core",
+    "rand/rng-trait",
+    "rand/slice-choose-iter",
+    "rand/standard",
+    "rand/thread_rng",
+    "rand/uniform-result",
+    "rand/upgrade",
+    "rand/weighted"
+   ]
+  },
+  "rand_distr": {
+   "status": null,
+   "rules": []
+  },
+  "rayon": {
+   "status": null,
+   "rules": []
+  },
+  "regex": {
+   "status": null,
+   "rules": []
+  },
+  "reqwest": {
+   "status": null,
+   "rules": []
+  },
+  "ring": {
+   "status": "unmaintained",
+   "rules": [
+    "ring/constant-time",
+    "ring/ecdsa-rng-arg",
+    "ring/public-modulus-len",
+    "ring/test-module",
+    "ring/upgrade"
+   ]
+  },
+  "rusqlite": {
+   "status": null,
+   "rules": []
+  },
+  "same-file": {
+   "status": null,
+   "rules": []
+  },
+  "select": {
+   "status": null,
+   "rules": []
+  },
+  "semver": {
+   "status": null,
+   "rules": []
+  },
+  "serde": {
+   "status": null,
+   "rules": []
+  },
+  "serde_derive": {
+   "status": null,
+   "rules": []
+  },
+  "serde_json": {
+   "status": null,
+   "rules": []
+  },
+  "skeptic": {
+   "status": null,
+   "rules": []
+  },
+  "syslog": {
+   "status": null,
+   "rules": []
+  },
+  "tar": {
+   "status": null,
+   "rules": []
+  },
+  "tempfile": {
+   "status": null,
+   "rules": []
+  },
+  "thiserror": {
+   "status": null,
+   "rules": [
+    "upgrade/thiserror-2"
+   ]
+  },
+  "threadpool": {
+   "status": null,
+   "rules": []
+  },
+  "tokio": {
+   "status": null,
+   "rules": [
+    "upgrade/tokio-1",
+    "upgrade/tokio-delay_for",
+    "upgrade/tokio-delay_until",
+    "upgrade/tokio-scheduler"
+   ]
+  },
+  "toml": {
+   "status": null,
+   "rules": []
+  },
+  "unicode-segmentation": {
+   "status": null,
+   "rules": []
+  },
+  "url": {
+   "status": null,
+   "rules": []
+  },
+  "walkdir": {
+   "status": null,
+   "rules": []
+  }
+ },
+ "awesome-2015": {
+  "libraries": 152,
+  "flagged_now": [
+   "bincode",
+   "byteorder",
+   "conrod",
+   "hyper",
+   "iron",
+   "rust-crypto",
+   "sodiumoxide",
+   "yaml-rust"
+  ]
+ },
+ "awesome-2018": {
+  "libraries": 367,
+  "flagged_now": [
+   "bincode",
+   "byteorder",
+   "chrono",
+   "clap",
+   "conrod",
+   "hyper",
+   "iron",
+   "json",
+   "pancurses",
+   "ring",
+   "rust-crypto",
+   "rusttype",
+   "serde-yaml",
+   "sodiumoxide",
+   "stdweb",
+   "structopt",
+   "tempdir",
+   "tiberius",
+   "tokio",
+   "yaml-rust"
+  ]
+ },
+ "awesome-2021": {
+  "libraries": 458,
+  "flagged_now": [
+   "bincode",
+   "byteorder",
+   "chrono",
+   "clap",
+   "conrod",
+   "hyper",
+   "iron",
+   "itertools",
+   "json",
+   "orbtk",
+   "pancurses",
+   "ring",
+   "rust-crypto",
+   "rusttype",
+   "rustybuzz",
+   "serde-yaml",
+   "sodiumoxide",
+   "structopt",
+   "tempdir",
+   "tiberius",
+   "tokio",
+   "yaml-rust"
+  ]
+ },
+ "awesome-2024": {
+  "libraries": 601,
+  "flagged_now": [
+   "bincode",
+   "byteorder",
+   "chrono",
+   "clap",
+   "conrod",
+   "hyper",
+   "iron",
+   "itertools",
+   "json",
+   "orbtk",
+   "pancurses",
+   "ring",
+   "rust-crypto",
+   "rusttype",
+   "rustybuzz",
+   "serde-yaml",
+   "structopt",
+   "tiberius",
+   "tokio",
+   "yaml-rust"
+  ]
+ }
+}
