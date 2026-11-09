@@ -1,0 +1,8 @@
+[package]
+name = "walk-2015"
+version = "0.1.0"
+authors = ["a <a@example.com>"]
+
+[dependencies]
+
+[workspace]

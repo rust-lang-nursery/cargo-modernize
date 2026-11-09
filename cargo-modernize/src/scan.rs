@@ -1477,11 +1477,14 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
             ec.attrs.iter().all(|a| !a.path().is_ident("macro_use")) && ec.rename.is_none();
         let edits = removable.then(|| vec![self.delete_lines(ec.span().start(), ec.span().end())]);
         for i in self.indices(|r| r.kind == Kind::ExternCrate && !r.exclude.contains(&name)) {
+            // A rule for edition 2015 (`below_edition`) only previews the 2018 cleanup:
+            // there the `extern crate` is still needed, so deleting it would break the build.
+            let edits = if self.rules[i].rule.below_edition.is_some() { None } else { edits.clone() };
             self.hit(
                 i,
                 ec.extern_token.span().start(),
                 ec.semi_token.span().end(),
-                edits.clone(),
+                edits,
                 None,
                 None,
             );
