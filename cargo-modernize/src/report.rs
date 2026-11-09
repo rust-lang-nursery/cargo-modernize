@@ -40,8 +40,52 @@ fn group_key(f: &Finding) -> (u8, Category, String) {
     (u8::from(f.rule.category != Category::Upgrade), f.rule.category, title)
 }
 
+/// How much source was looked at, across all packages.
+struct Totals {
+    files: usize,
+    lines: usize,
+    skipped_files: usize,
+    skipped_lines: usize,
+}
+
+impl Totals {
+    fn of(reports: &[PackageReport]) -> Self {
+        Totals {
+            files: reports.iter().map(|r| r.coverage.files).sum(),
+            lines: reports.iter().map(|r| r.coverage.lines).sum(),
+            skipped_files: reports.iter().map(|r| r.coverage.skipped.len()).sum(),
+            skipped_lines: reports.iter().map(|r| r.coverage.skipped_lines()).sum(),
+        }
+    }
+
+    /// Share of all source lines that were not scanned, 0 to 100.
+    fn skipped_pct(&self) -> f64 {
+        let all = self.lines + self.skipped_lines;
+        if all == 0 { 0.0 } else { 100.0 * self.skipped_lines as f64 / all as f64 }
+    }
+}
+
+/// One line saying what was and was not checked, so a clean result can't pass for a complete one.
+/// `unanalyzed` are nested crates that are not workspace members.
+pub fn coverage_line(reports: &[PackageReport], unanalyzed: &[String]) -> String {
+    let t = Totals::of(reports);
+    let mut line = format!("scanned {} file(s), {} line(s)", t.files, t.lines);
+    if t.skipped_files > 0 {
+        line += &format!(
+            "; NOT scanned: {} file(s) that failed to parse ({} line(s), {:.1}%)",
+            t.skipped_files,
+            t.skipped_lines,
+            t.skipped_pct()
+        );
+    }
+    if !unanalyzed.is_empty() {
+        line += &format!("; NOT analyzed: {} nested crate(s) that are not workspace members", unanalyzed.len());
+    }
+    line
+}
+
 /// The grouped view: one section per upgrade plan / category.
-pub fn plans(reports: &[PackageReport], rustc: Option<&semver::Version>) {
+pub fn plans(reports: &[PackageReport], rustc: Option<&semver::Version>, unanalyzed: &[String]) {
     let st = style();
     let mut counts: BTreeMap<Level, usize> = BTreeMap::new();
     let mut fixable = 0;
@@ -88,6 +132,7 @@ pub fn plans(reports: &[PackageReport], rustc: Option<&semver::Version>) {
         println!("{}{hint}", st.bold(format!("{total} finding(s): {}", parts.join(", "))));
         println!("{}", st.dim("`cargo modernize --explain <rule>` shows real-world examples; tune levels per folder in `.modernize`"));
     }
+    println!("{}", st.dim(coverage_line(reports, unanalyzed)));
 }
 
 fn print_groups(st: &Style, findings: &[&Finding], bullet: &str) {
@@ -155,7 +200,7 @@ fn level_word(l: Level) -> &'static str {
 
 /// rustc-style diagnostics: `warning[rule]: message`, a source excerpt with carets,
 /// notes, and the suggested rewrite as a `-`/`+` diff.
-pub fn rustc(reports: &[PackageReport]) {
+pub fn rustc(reports: &[PackageReport], unanalyzed: &[String]) {
     let st = style();
     let paint = |l: Level, s: &str| match l {
         Level::Deny => st.paint("1;31", s),
@@ -242,9 +287,10 @@ pub fn rustc(reports: &[PackageReport]) {
         let worst = r.findings.iter().map(|f| f.level).max().unwrap_or(Level::Suggest);
         println!("{}: `{}` generated {}{hint}", paint(worst, level_word(worst)), r.name, parts.join(", "));
     }
+    println!("{}", st.dim(coverage_line(reports, unanalyzed)));
 }
 
-pub fn json(reports: &[PackageReport]) {
+pub fn json(reports: &[PackageReport], unanalyzed: &[String]) {
     let packages: Vec<_> = reports
         .iter()
         .map(|r| {
@@ -280,11 +326,26 @@ pub fn json(reports: &[PackageReport]) {
                 "version": r.version,
                 "edition": r.edition,
                 "rust_version": r.rust_version,
+                "coverage": coverage_json(&Totals::of(std::slice::from_ref(r)), &r.coverage.skipped),
                 "findings": findings,
             })
         })
         .collect();
-    println!("{}", serde_json::to_string_pretty(&json!({ "packages": packages })).unwrap());
+    let all_skipped: Vec<_> = reports.iter().flat_map(|r| r.coverage.skipped.iter().cloned()).collect();
+    let mut coverage = coverage_json(&Totals::of(reports), &all_skipped);
+    coverage["unanalyzed_crates"] = json!(unanalyzed);
+    println!("{}", serde_json::to_string_pretty(&json!({ "packages": packages, "coverage": coverage })).unwrap());
+}
+
+fn coverage_json(t: &Totals, skipped: &[crate::scan::SkippedFile]) -> serde_json::Value {
+    json!({
+        "files_scanned": t.files,
+        "lines_scanned": t.lines,
+        "files_skipped": t.skipped_files,
+        "lines_skipped": t.skipped_lines,
+        "skipped_pct": (t.skipped_pct() * 10.0).round() / 10.0,
+        "skipped": skipped.iter().map(|f| json!({ "file": f.file, "lines": f.lines, "error": f.error })).collect::<Vec<_>>(),
+    })
 }
 
 pub fn explain(r: &Rule) {

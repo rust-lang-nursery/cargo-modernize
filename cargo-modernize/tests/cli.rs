@@ -388,3 +388,40 @@ fn warns_about_nested_crates_that_are_not_workspace_members() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("1 nested crate(s) are not workspace members") && stderr.contains("inner"), "{stderr}");
 }
+
+#[test]
+fn reports_how_much_source_was_not_scanned() {
+    let dir = std::env::temp_dir().join(format!("cargo-modernize-coverage-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    std::fs::create_dir_all(dir.join("inner/src")).unwrap();
+    std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"outer\"\nversion = \"0.1.0\"\nedition = \"2018\"\n\n[workspace]\n").unwrap();
+    std::fs::write(dir.join("src/lib.rs"), "pub mod old;\npub fn ok() {}\n").unwrap();
+    // syn 3 cannot parse a bare `Fn(..)` trait object, so this file is skipped.
+    std::fs::write(dir.join("src/old.rs"), "pub fn f(x: Box<Fn(i32)>) {}\n\n\n").unwrap();
+    std::fs::write(dir.join("inner/Cargo.toml"), "[package]\nname = \"inner\"\nversion = \"0.1.0\"\nedition = \"2018\"\n").unwrap();
+    std::fs::write(dir.join("inner/src/lib.rs"), "").unwrap();
+
+    let v = run_json(&dir.join("Cargo.toml"), &["--fail-on", "off"]);
+    let c = &v["coverage"];
+    assert_eq!(c["files_scanned"], 1, "{c:#}");
+    assert_eq!(c["files_skipped"], 1, "{c:#}");
+    assert_eq!(c["lines_skipped"], 3, "{c:#}");
+    assert_eq!(c["skipped"][0]["file"], "src/old.rs", "{c:#}");
+    assert_eq!(c["unanalyzed_crates"][0], "inner", "{c:#}");
+    assert_eq!(v["packages"][0]["coverage"]["files_skipped"], 1);
+
+    // The human and plans views say it too.
+    for format in ["plans", "human"] {
+        let out = modernize(&dir, &["--format", format, "--fail-on", "off"]);
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(text.contains("NOT scanned: 1 file(s)") && text.contains("NOT analyzed: 1 nested crate(s)"), "{format}: {text}");
+    }
+}
+
+#[test]
+fn clean_scan_still_says_what_was_scanned() {
+    let v = run_json(&fixture("modern/Cargo.toml"), &[]);
+    assert!(v["coverage"]["files_scanned"].as_u64().unwrap() > 0, "{v:#}");
+    assert_eq!(v["coverage"]["files_skipped"], 0);
+}

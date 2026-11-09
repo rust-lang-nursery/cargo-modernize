@@ -71,12 +71,38 @@ pub const PATTERNS: &[&str] = &[
     "impl-lifetime-elision",
 ];
 
+/// A source file the scanner could not read or parse. Nothing in it was checked.
+#[derive(Clone, Debug)]
+pub struct SkippedFile {
+    /// Relative to the workspace root.
+    pub file: PathBuf,
+    pub lines: usize,
+    pub error: String,
+}
+
+/// How much of a package's source was actually looked at.
+#[derive(Clone, Debug, Default)]
+pub struct Coverage {
+    /// Files parsed and scanned.
+    pub files: usize,
+    /// Lines in those files.
+    pub lines: usize,
+    pub skipped: Vec<SkippedFile>,
+}
+
+impl Coverage {
+    pub fn skipped_lines(&self) -> usize {
+        self.skipped.iter().map(|f| f.lines).sum()
+    }
+}
+
 pub struct PackageReport {
     pub name: String,
     pub version: String,
     pub edition: u16,
     pub rust_version: String,
     pub findings: Vec<Finding>,
+    pub coverage: Coverage,
 }
 
 pub struct Finding {
@@ -175,17 +201,27 @@ pub fn analyze(pkg: &Package, cx: &Context) -> Result<PackageReport> {
 
     let mut hits = manifest_hits(pkg, &active);
     hits.extend(ecosystem_hits(pkg, cx, &active));
+    let mut coverage = Coverage::default();
+    let rel = |file: &Path| file.strip_prefix(cx.ws_root).unwrap_or(file).to_path_buf();
     for file in source_files(&pkg.root) {
-        let Ok(text) = std::fs::read_to_string(&file) else {
-            continue;
+        let text = match std::fs::read_to_string(&file) {
+            Ok(text) => text,
+            Err(e) => {
+                eprintln!("warning: skipping {}: {e}", file.display());
+                coverage.skipped.push(SkippedFile { file: rel(&file), lines: 0, error: e.to_string() });
+                continue;
+            }
         };
         let ast = match syn::parse_file(&text) {
             Ok(ast) => ast,
             Err(e) => {
                 eprintln!("warning: skipping {}: {e}", file.display());
+                coverage.skipped.push(SkippedFile { file: rel(&file), lines: text.lines().count(), error: e.to_string() });
                 continue;
             }
         };
+        coverage.files += 1;
+        coverage.lines += text.lines().count();
         let mut uses = UseCollector::default();
         uses.visit_file(&ast);
         let mut s = Scanner::new(&active, &root_map, &file, &text, uses.leaves, pkg, cx.rustc);
@@ -247,6 +283,7 @@ pub fn analyze(pkg: &Package, cx: &Context) -> Result<PackageReport> {
         edition: pkg.edition,
         rust_version: pkg.rust_version_str(),
         findings,
+        coverage,
     })
 }
 
