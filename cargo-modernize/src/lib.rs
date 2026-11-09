@@ -6,6 +6,7 @@ pub mod config;
 pub mod ecosystem;
 pub mod legacy;
 pub mod project;
+pub mod repair;
 pub mod rewrite;
 pub mod rules;
 pub mod scan;

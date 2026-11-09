@@ -398,8 +398,8 @@ fn reports_how_much_source_was_not_scanned() {
     std::fs::create_dir_all(dir.join("inner/src")).unwrap();
     std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"outer\"\nversion = \"0.1.0\"\nedition = \"2018\"\n\n[workspace]\n").unwrap();
     std::fs::write(dir.join("src/lib.rs"), "pub mod old;\npub fn ok() {}\n").unwrap();
-    // syn 3 cannot parse a bare `Fn(..)` trait object, so this file is skipped.
-    std::fs::write(dir.join("src/old.rs"), "pub fn f(x: Box<Fn(i32)>) {}\n\n\n").unwrap();
+    // Pre-1.0 `proc()` is not repaired, so this file is skipped.
+    std::fs::write(dir.join("src/old.rs"), "pub fn f() { spawn(proc() { 1 }); }\n\n\n").unwrap();
     std::fs::write(dir.join("inner/Cargo.toml"), "[package]\nname = \"inner\"\nversion = \"0.1.0\"\nedition = \"2018\"\n").unwrap();
     std::fs::write(dir.join("inner/src/lib.rs"), "").unwrap();
 
@@ -447,4 +447,32 @@ fn edition_2018_step_previews_the_cleanup_and_hands_over_after_the_bump() {
     let rules: Vec<String> = findings(&run_json(&dir.join("Cargo.toml"), &["--fail-on", "off"])).into_iter().map(|(r, _, _)| r).collect();
     assert!(rules.iter().any(|r| r == "edition/extern-crate") && rules.iter().any(|r| r == "edition/macro-use"), "{rules:?}");
     assert!(!rules.iter().any(|r| r.ends_with("-2015") || r == "walk/edition-2018"), "{rules:?}");
+}
+
+#[test]
+fn old_syntax_is_patched_so_the_file_is_still_scanned() {
+    let v = run_json(&fixture("old-syntax/Cargo.toml"), &["--fail-on", "off"]);
+    let c = &v["coverage"];
+    assert_eq!(c["files_skipped"], 0, "{c:#}");
+    assert_eq!(c["files_repaired"], 1, "{c:#}");
+    assert_eq!(c["repaired"][0], "src/lib.rs", "{c:#}");
+    // Rules still fire in the patched file, at the original positions, with no autofix.
+    let found: Vec<_> = v["packages"][0]["findings"].as_array().unwrap().iter().filter(|f| f["file"] == "src/lib.rs").collect();
+    let rule = |name: &str| found.iter().find(|f| f["rule"] == name).unwrap_or_else(|| panic!("missing {name}: {found:#?}"));
+    let src = read(&fixture("old-syntax"), "src/lib.rs");
+    let line_of = |needle: &str| src.lines().position(|l| l.contains(needle)).unwrap() as u64 + 1;
+    let len_zero = rule("walk/len-zero");
+    assert_eq!((len_zero["line"].as_u64(), len_zero["column"].as_u64()), (Some(line_of("v.len() == 0")), Some(7)), "{len_zero:#}");
+    assert_eq!(len_zero["snippet"], "v.len() == 0");
+    assert_eq!(rule("std/try-macro")["line"].as_u64(), Some(line_of("try!(Some(x))")));
+    assert!(found.iter().all(|f| f["fix"].is_null()), "repaired files get no autofix: {found:#?}");
+    // The human view says so too.
+    let out = modernize(&fixture("old-syntax"), &["--format", "plans", "--fail-on", "off"]);
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("1 of them only after patching old syntax"), "{text}");
+    // And --dangerous leaves the file alone.
+    let dir = copy_fixture("old-syntax");
+    let before = read(&dir, "src/lib.rs");
+    modernize(&dir, &["--dangerous", "--allow-no-vcs", "--no-verify"]);
+    assert_eq!(read(&dir, "src/lib.rs"), before);
 }

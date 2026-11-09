@@ -3,6 +3,7 @@ mod ecosystem;
 mod fix;
 mod legacy;
 mod project;
+mod repair;
 mod report;
 mod rewrite;
 mod rules;
