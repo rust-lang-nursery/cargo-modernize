@@ -159,3 +159,4 @@ Add your own in a `.modernize` file (scoped to its folder) or with `--rules FILE
 - No type information: `method` rules match by name in files that import the crate, gated by version. Structural `pattern` detectors match syntax only. For example, `rusty/is-some-and` can't tell `Option::map_or` from another type's `map_or`. That's one reason they're opinions.
 - Paths, macros, and attributes are resolved precisely through imports, but not through glob imports.
 - Bodies of macros that aren't expression lists or statements (e.g. `lazy_static! { static ref … }`) aren't scanned.
+- Files that fail to parse (old syntax such as bare `Fn()` trait objects) and nested crates that aren't workspace members are skipped. Every run says how much: the last line of the `plans` and `human` output, and `coverage` in `--format json` (files and lines scanned and skipped, `skipped_pct`, the skipped files with their error, `unanalyzed_crates`).

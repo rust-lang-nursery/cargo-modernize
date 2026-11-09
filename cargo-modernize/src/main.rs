@@ -134,14 +134,15 @@ fn run(args: Args) -> Result<ExitCode> {
     }
 
     let ws = project::load(args.manifest_path.as_deref())?;
-    let skipped = scan::unanalyzed_crates(&ws.packages);
-    if !skipped.is_empty() {
-        let shown: Vec<_> = skipped.iter().take(5).map(|p| p.strip_prefix(&ws.root).unwrap_or(p).display().to_string()).collect();
+    let unanalyzed: Vec<String> =
+        scan::unanalyzed_crates(&ws.packages).iter().map(|p| p.strip_prefix(&ws.root).unwrap_or(p).display().to_string()).collect();
+    if !unanalyzed.is_empty() {
+        let shown: Vec<_> = unanalyzed.iter().take(5).cloned().collect();
         eprintln!(
             "warning: {} nested crate(s) are not workspace members and were not analyzed: {}{}\n  add them to `[workspace] members`, or run `cargo modernize --manifest-path <crate>/Cargo.toml` on each",
-            skipped.len(),
+            unanalyzed.len(),
             shown.join(", "),
-            if skipped.len() > shown.len() { ", …" } else { "" }
+            if unanalyzed.len() > shown.len() { ", …" } else { "" }
         );
     }
     let (config, scoped) = config::Config::discover(&ws.root)?;
@@ -195,14 +196,14 @@ fn run(args: Args) -> Result<ExitCode> {
 
     let reports = fresh()?;
     match args.format {
-        Format::Plans => report::plans(&reports, rustc.as_ref()),
+        Format::Plans => report::plans(&reports, rustc.as_ref(), &unanalyzed),
         Format::Human => {
-            report::rustc(&reports);
+            report::rustc(&reports, &unanalyzed);
             if reports.iter().flat_map(|r| &r.findings).any(|f| f.rule.kind == rules::Kind::Ecosystem) {
                 println!("ecosystem data from {}; refresh with `cargo run -p modernize-ecosystem` or pass --ecosystem FILE", eco.generated);
             }
         }
-        Format::Json => report::json(&reports),
+        Format::Json => report::json(&reports, &unanalyzed),
     }
     let failed = reports.iter().flat_map(|r| &r.findings).any(|f| args.fail_on != Level::Off && f.level >= args.fail_on);
     Ok(if failed { ExitCode::from(2) } else { ExitCode::SUCCESS })
