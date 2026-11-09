@@ -220,14 +220,15 @@ pub fn analyze(pkg: &Package, cx: &Context) -> Result<PackageReport> {
         };
         let (ast, repaired) = match syn::parse_file(&text) {
             Ok(ast) => (ast, None),
-            Err(e) => match repair::parse(&text) {
-                Some((ast, r)) => {
+            Err(_) => match repair::try_parse(&text) {
+                Ok((ast, r)) => {
                     coverage.repaired.push(rel(&file));
                     (ast, Some(r))
                 }
-                None => {
-                    eprintln!("warning: skipping {}: {e}", file.display());
-                    coverage.skipped.push(SkippedFile { file: rel(&file), lines: text.lines().count(), error: e.to_string() });
+                Err(f) => {
+                    let error = format!("{}:{}: {}", f.line, f.column, f.message);
+                    eprintln!("warning: skipping {}:{error}", file.display());
+                    coverage.skipped.push(SkippedFile { file: rel(&file), lines: text.lines().count(), error });
                     continue;
                 }
             },

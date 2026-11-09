@@ -2,6 +2,8 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+mod ancient;
+
 pub struct Handlers {
     pub by_name: HashMap<String, Box<Fn(i32) -> i32>>,
     pub shared: Option<Rc<Fn() + Send>>,

@@ -8,10 +8,18 @@
 //! - `await`, `async`, `dyn`, `try` used as names → the same name with a capital last letter
 //! - `crate struct S;` → `pub   struct S;` (nightly `crate` visibility)
 //!
-//! Only the `dyn ` and `_: ` patches change the length of a line. They are remembered so
-//! a position in the patched text can be mapped back to the original. Findings from a
-//! repaired file carry no autofix: the rewrite would be built from patched text.
-//! Syntax from before Rust 1.0 (`proc()`, `box`, `[T, ..N]`) is not repaired.
+//! Syntax from before Rust 1.0 is patched too, since 2015 snapshots still hold it:
+//!
+//! - `proc() { … }` → `    || { … }`, `box x` → `    x`, `#[deriving(..)]` → `#[derive  (..)]`
+//! - `[T, ..N]` → `[T;   N]`, `extern crate "a-b" as c` → `extern crate  a_b  as c`
+//! - `use a::{mod, B}` → `use a::{_mo, B}`, `pub type E { .. }` → `pub enum E { .. }`
+//! - `|uint| -> T` (closure type) → `fn(uint) -> T`, `x as u32 << 8` → `x as (u32) << 8`
+//! - `v[]` → `v[..]`, `v[mut]` → `v[.. ]`, `v[mut a..b]` → `v[    a..b]`, and a `;` after an item macro written with `( … )`
+//!
+//! Most patches keep the length of the line. The ones that do not (`dyn `, `_: `, and the
+//! last two above) are remembered so a position in the patched text can be mapped back to
+//! the original. Findings from a repaired file carry no autofix: a rewrite would be built
+//! from patched text. A file whose brackets do not balance is beyond repair.
 
 use crate::scan::{byte_offset, line_starts};
 use proc_macro2::LineColumn;
@@ -44,22 +52,43 @@ impl Repaired {
     }
 }
 
+/// Where and why a file could not be parsed even after patching.
+#[derive(Debug)]
+pub struct Failure {
+    /// In the original file.
+    pub line: usize,
+    pub column: usize,
+    pub message: String,
+}
+
 /// Parse `original`, patching old syntax as needed. `None` if some error is not one we know how to fix.
 pub fn parse(original: &str) -> Option<(syn::File, Repaired)> {
+    try_parse(original).ok()
+}
+
+/// Like [`parse`], but says where it gave up.
+pub fn try_parse(original: &str) -> Result<(syn::File, Repaired), Failure> {
     let mut text = original.to_owned();
     let mut inserts = Vec::new();
+    let mut last = None;
+    prepass(&mut text);
     for _ in 0..400 {
         match syn::parse_file(&text) {
-            Ok(ast) => return Some((ast, Repaired { text, inserts })),
+            Ok(ast) => return Ok((ast, Repaired { text, inserts })),
             Err(e) => {
-                let off = byte_offset(&text, &line_starts(&text), e.span().start());
-                if !fix_at(&mut text, &mut inserts, off, &e.to_string()) {
-                    return None;
+                let at = e.span().start();
+                let off = byte_offset(&text, &line_starts(&text), at);
+                let message = e.to_string();
+                let stuck = Repaired { text: String::new(), inserts: inserts.clone() };
+                let pos = stuck.to_original(at);
+                last = Some(Failure { line: pos.line, column: pos.column + 1, message: message.clone() });
+                if !fix_at(&mut text, &mut inserts, off, &message) {
+                    break;
                 }
             }
         }
     }
-    None
+    Err(last.unwrap_or(Failure { line: 1, column: 1, message: "too many repairs".into() }))
 }
 
 const FN_TRAITS: [&str; 4] = ["Fn", "FnMut", "FnOnce", "FnBox"];
@@ -126,7 +155,168 @@ fn fix_at(text: &mut String, inserts: &mut Vec<Insert>, off: usize, msg: &str) -
         insert(text, inserts, start, "_: ");
         return true;
     }
+    // `[f32, ..3]`: the old array type. `,` + `..` become `;` + spaces.
+    if msg.contains("expected `]`") || msg.contains("expected `;`") || msg.contains("expected `,`") {
+        let comma = if text[off..].starts_with(',') { Some(off) } else { text[..off].rfind(',') };
+        if let Some(c) = comma {
+            let after = text[c + 1..].trim_start();
+            if after.starts_with("..") && after[2..].starts_with(|ch: char| ch.is_alphanumeric() || ch == '_') {
+                let end = text.len() - after.len() + 2;
+                text.replace_range(c..end, &format!(";{}", " ".repeat(end - c - 1)));
+                return true;
+            }
+        }
+    }
+    // `macro_rules! m( … )` / `thread_local!( … )` as an item: today it needs a `;`.
+    if msg.contains("expected `;`") {
+        // At the end of the file the parser has no position to give (it reports 1:1).
+        let head = if off == 0 { text.trim_end() } else { text[..off].trim_end() };
+        if head.ends_with(')') || head.ends_with(']') {
+            let at = head.len();
+            insert(text, inserts, at, ";");
+            return true;
+        }
+    }
+    // `v[mut]`: the old mutable full-range slice. `mut` and `.. ` are the same length.
+    if text[off..].starts_with("mut]") && text[..off].ends_with('[') {
+        text.replace_range(off..off + 3, ".. ");
+        return true;
+    }
+    // `v[mut a..b]`: the old mutable range slice.
+    if text[off..].starts_with("mut ") && text[..off].ends_with('[') {
+        text.replace_range(off..off + 3, "   ");
+        return true;
+    }
+    // `v[]`: the old full-range slice, now `v[..]`. The parser stops at the `]`.
+    if text[off..].starts_with(']') && text[..off].ends_with('[') {
+        insert(text, inserts, off, "..");
+        return true;
+    }
+    // `x as u32 << 8`: `<<` (or `<`) reads as generic arguments of `u32`, and the parser
+    // fails just after it. Parenthesize the type.
+    let line_start = text[..off].rfind('\n').map_or(0, |n| n + 1);
+    let line = &text[line_start..off];
+    for op in ["<<", "<"] {
+        if let Some(at) = line.rfind(op) {
+            let head = &text[..line_start + at];
+            if let Some((start, ty)) = word_before(head, head.len()).map(|(i, w)| (i, w.to_owned()))
+                && head[..start].trim_end().ends_with(" as")
+                && text[line_start + at + op.len()..off].trim_start_matches(|c: char| c.is_whitespace() || c == '(').is_empty()
+            {
+                insert(text, inserts, start + ty.len(), ")");
+                insert(text, inserts, start, "(");
+                return true;
+            }
+        }
+    }
+    // `f: |uint| -> T` / `f: ||`: the old closure type. Becomes a `fn` pointer type.
+    if text[off..].starts_with('|') {
+        return closure_type(text, inserts, off);
+    }
     false
+}
+
+/// `|a, b| -> R` → `fn(a, b) -> R` and `||` → `fn()`.
+fn closure_type(text: &mut String, inserts: &mut Vec<Insert>, off: usize) -> bool {
+    if text[off..].starts_with("||") {
+        text.replace_range(off..off + 2, "fn");
+        insert(text, inserts, off + 2, "()");
+        return true;
+    }
+    let Some(close) = text[off + 1..].find('|').map(|i| off + 1 + i) else {
+        return false;
+    };
+    if text[off..close].contains('\n') {
+        return false;
+    }
+    text.replace_range(close..close + 1, ")");
+    text.replace_range(off..off + 1, "f");
+    insert(text, inserts, off + 1, "n(");
+    true
+}
+
+/// Replace `word` where it stands alone (not part of a longer name, path, or method call).
+fn standalone(text: &str, word: &str) -> Vec<usize> {
+    text.match_indices(word)
+        .map(|(i, _)| i)
+        .filter(|&i| {
+            let before = text[..i].chars().next_back();
+            let after = text[i + word.len()..].chars().next();
+            !before.is_some_and(|c| is_word(c) || c == '.' || c == ':' || c == '#') && !after.is_some_and(is_word)
+        })
+        .collect()
+}
+
+/// Patches that are the same length as what they replace, and cannot be valid Rust 1.x
+/// anyway, so they are safe to apply to any file that already failed to parse.
+fn prepass(text: &mut String) {
+    // `#[deriving(Clone)]` → `#[derive  (Clone)]`
+    *text = text.replace("#[deriving(", "#[derive  (");
+    // `box x` → `    x`: the old box expression.
+    for i in standalone(text, "box").into_iter().rev() {
+        if text[i + 3..].starts_with(char::is_whitespace) {
+            text.replace_range(i..i + 3, "   ");
+        }
+    }
+    // `proc(a, b) { … }` → `    |a, b| { … }`
+    for i in standalone(text, "proc").into_iter().rev() {
+        if !text[i + 4..].starts_with('(') {
+            continue;
+        }
+        let Some(close) = matching_paren(text, i + 4) else { continue };
+        if text[close + 1..].trim_start().starts_with('{') {
+            text.replace_range(close..close + 1, "|");
+            text.replace_range(i..i + 5, "    |");
+        }
+    }
+    // `extern crate "a-b" as c;` → `extern crate  a_b  as c;`
+    for i in standalone(text, "extern").into_iter().rev() {
+        let rest = &text[i..];
+        let Some(q) = rest.strip_prefix("extern").map(str::trim_start).and_then(|r| r.strip_prefix("crate")).map(str::trim_start) else {
+            continue;
+        };
+        if let Some(body) = q.strip_prefix('"')
+            && let Some(end) = body.find('"')
+        {
+            let start = text.len() - q.len() - (text.len() - i - rest.len());
+            let name = body[..end].replace('-', "_");
+            text.replace_range(start..start + end + 2, &format!(" {name} "));
+        }
+    }
+    // `use a::{mod, B};` → `use a::{_mo, B};`
+    for i in standalone(text, "mod").into_iter().rev() {
+        let line_start = text[..i].rfind('\n').map_or(0, |n| n + 1);
+        let line = &text[line_start..i];
+        if line.trim_start().starts_with("use ") && line.contains('{') {
+            text.replace_range(i..i + 3, "_mo");
+        }
+    }
+    // `pub type Kind { A, B }` → `pub enum Kind { A, B }`
+    for i in standalone(text, "type").into_iter().rev() {
+        let rest = text[i + 4..].trim_start();
+        let name_len = rest.find(|c: char| !is_word(c)).unwrap_or(0);
+        if name_len > 0 && rest[name_len..].trim_start().starts_with('{') {
+            text.replace_range(i..i + 4, "enum");
+        }
+    }
+}
+
+/// The `)` that closes the `(` at `open`, ignoring nothing fancy: strings and comments are rare in `proc(..)` heads.
+fn matching_paren(text: &str, open: usize) -> Option<usize> {
+    let mut depth = 0;
+    for (i, c) in text[open..].char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(open + i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Where the parameter that ends at `off` begins: just after the previous `,` or `(` at the same depth.
@@ -199,7 +389,40 @@ mod tests {
     }
 
     #[test]
+    fn pre_1_0_syntax_is_patched() {
+        let src = "#[deriving(Clone)]\nstruct S { p: [f32, ..3], f: |uint| -> u8, g: || }\n\
+                   pub type Kind { A, B }\n\
+                   extern crate \"lib-sys\" as ffi;\nuse a::{mod, B};\n\
+                   fn main() {\n    let x = box S;\n    spawn(proc(a: u8) { a });\n    let y = (self.a as i32 << 24) | 1;\n}\n";
+        let r = match try_parse(src) {
+            Ok((_, r)) => r,
+            Err(f) => panic!("failed at {}:{}: {}\n{src}", f.line, f.column, f.message),
+        };
+        for want in ["#[derive  (Clone)]", "[f32;   3]", "fn(uint) -> u8", "g: fn()", "pub enum Kind", "extern crate  lib_sys  as ffi", "{_mo, B}", "let x =     S;", "    |a: u8| { a }", "as (i32) << 24"] {
+            assert!(r.text.contains(want), "missing `{want}` in:\n{}", r.text);
+        }
+    }
+
+    #[test]
+    fn old_slices_item_macros_and_shifts() {
+        let r = ok("macro_rules! m(\n    () => (1)\n)\n\n#[macro_export]\nmacro_rules! n { () => (2) }\nthread_local!(static X: u8 = 0)\nfn f(v: &[u8], i: u32) -> u32 { let _ = &v[]; let _ = &mut v[mut]; let _ = v[mut 1..2]; *x |= b[i] as u32 << (8 * i); 1 }\n");
+        for want in ["m(\n    () => (1)\n);", "thread_local!(static X: u8 = 0);", "&v[..]", "as (u32) << (8 * i)", "[.. ]"] {
+            assert!(r.text.contains(want), "missing `{want}` in:\n{}", r.text);
+        }
+    }
+
+    #[test]
+    fn same_length_patches_do_not_move_positions() {
+        let src = "fn main() { spawn(proc() { work(); }); }\n";
+        let r = ok(src);
+        assert_eq!(r.text.len(), src.len());
+        let at = r.text.find("work").unwrap();
+        assert_eq!(r.to_original(LineColumn { line: 1, column: at }).column, at);
+    }
+
+    #[test]
     fn syntax_it_cannot_fix_is_left_alone() {
-        assert!(parse("fn main() { spawn(proc() { 1 }); }").is_none());
+        // Unbalanced brackets are in the source itself.
+        assert!(parse("#[cfg(any(target_os=\"a\", target_os=\"b\")]\nfn main() {}\n").is_none());
     }
 }
