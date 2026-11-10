@@ -111,3 +111,12 @@ Ordered by how much missed code each would recover, as measured here.
 ## Reproduce
 
 See [ECOSYSTEM-STUDY.md](ECOSYSTEM-STUDY.md#reproduce).
+
+## Update: parse failures fixed (issue #3)
+
+A parser swap does not help: `syn` 2 and `syn` 3 both reject all 82 files. Instead, `src/repair.rs` patches the text where the parser stops and parses again (see the README).
+
+Re-running the same 120 projects: skipped files went from **82 to 1**. The one left is rust-sdl `src/sdl/start.rs`, whose own brackets do not balance (`#[cfg(any(...)]`), so there is nothing to repair.
+Per year: 2015 27 to 0, 2018 43 to 0, 2021 9 to 1, 2024 3 to 0. Finding counts also went up, but that run includes the rules added since the study (issues #5 and #6), so they are not a clean measure of the repair.
+Repaired files report positions in the original source and carry no autofix.
+

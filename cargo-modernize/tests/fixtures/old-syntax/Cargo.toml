@@ -1,0 +1,8 @@
+[package]
+name = "old-syntax"
+version = "0.1.0"
+authors = ["a <a@example.com>"]
+
+[dependencies]
+
+[workspace]

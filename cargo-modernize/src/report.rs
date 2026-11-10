@@ -46,6 +46,7 @@ struct Totals {
     lines: usize,
     skipped_files: usize,
     skipped_lines: usize,
+    repaired_files: usize,
 }
 
 impl Totals {
@@ -55,6 +56,7 @@ impl Totals {
             lines: reports.iter().map(|r| r.coverage.lines).sum(),
             skipped_files: reports.iter().map(|r| r.coverage.skipped.len()).sum(),
             skipped_lines: reports.iter().map(|r| r.coverage.skipped_lines()).sum(),
+            repaired_files: reports.iter().map(|r| r.coverage.repaired.len()).sum(),
         }
     }
 
@@ -70,6 +72,9 @@ impl Totals {
 pub fn coverage_line(reports: &[PackageReport], unanalyzed: &[String]) -> String {
     let t = Totals::of(reports);
     let mut line = format!("scanned {} file(s), {} line(s)", t.files, t.lines);
+    if t.repaired_files > 0 {
+        line += &format!("; {} of them only after patching old syntax (their findings have no autofix)", t.repaired_files);
+    }
     if t.skipped_files > 0 {
         line += &format!(
             "; NOT scanned: {} file(s) that failed to parse ({} line(s), {:.1}%)",
@@ -326,24 +331,27 @@ pub fn json(reports: &[PackageReport], unanalyzed: &[String]) {
                 "version": r.version,
                 "edition": r.edition,
                 "rust_version": r.rust_version,
-                "coverage": coverage_json(&Totals::of(std::slice::from_ref(r)), &r.coverage.skipped),
+                "coverage": coverage_json(&Totals::of(std::slice::from_ref(r)), &r.coverage.skipped, &r.coverage.repaired),
                 "findings": findings,
             })
         })
         .collect();
     let all_skipped: Vec<_> = reports.iter().flat_map(|r| r.coverage.skipped.iter().cloned()).collect();
-    let mut coverage = coverage_json(&Totals::of(reports), &all_skipped);
+    let all_repaired: Vec<_> = reports.iter().flat_map(|r| r.coverage.repaired.iter().cloned()).collect();
+    let mut coverage = coverage_json(&Totals::of(reports), &all_skipped, &all_repaired);
     coverage["unanalyzed_crates"] = json!(unanalyzed);
     println!("{}", serde_json::to_string_pretty(&json!({ "packages": packages, "coverage": coverage })).unwrap());
 }
 
-fn coverage_json(t: &Totals, skipped: &[crate::scan::SkippedFile]) -> serde_json::Value {
+fn coverage_json(t: &Totals, skipped: &[crate::scan::SkippedFile], repaired: &[std::path::PathBuf]) -> serde_json::Value {
     json!({
         "files_scanned": t.files,
         "lines_scanned": t.lines,
         "files_skipped": t.skipped_files,
         "lines_skipped": t.skipped_lines,
         "skipped_pct": (t.skipped_pct() * 10.0).round() / 10.0,
+        "files_repaired": t.repaired_files,
+        "repaired": repaired,
         "skipped": skipped.iter().map(|f| json!({ "file": f.file, "lines": f.lines, "error": f.error })).collect::<Vec<_>>(),
     })
 }

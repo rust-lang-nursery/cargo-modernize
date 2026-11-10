@@ -5,6 +5,7 @@
 use crate::config::Config;
 use crate::ecosystem::{self, Ecosystem};
 use crate::project::{LockPkg, Package};
+use crate::repair;
 use crate::rules::{self, FEATURES, FixSafety, Kind, Level, Rule};
 use anyhow::Result;
 use proc_macro2::{LineColumn, Span};
@@ -90,6 +91,9 @@ pub struct Coverage {
     /// Lines in those files.
     pub lines: usize,
     pub skipped: Vec<SkippedFile>,
+    /// Files that only parsed after old syntax was patched (see `repair`). They are
+    /// scanned, but their findings carry no autofix.
+    pub repaired: Vec<PathBuf>,
 }
 
 impl Coverage {
@@ -214,21 +218,39 @@ pub fn analyze(pkg: &Package, cx: &Context) -> Result<PackageReport> {
                 continue;
             }
         };
-        let ast = match syn::parse_file(&text) {
-            Ok(ast) => ast,
-            Err(e) => {
-                eprintln!("warning: skipping {}: {e}", file.display());
-                coverage.skipped.push(SkippedFile { file: rel(&file), lines: text.lines().count(), error: e.to_string() });
-                continue;
-            }
+        let (ast, repaired) = match syn::parse_file(&text) {
+            Ok(ast) => (ast, None),
+            Err(_) => match repair::try_parse(&text) {
+                Ok((ast, r)) => {
+                    coverage.repaired.push(rel(&file));
+                    (ast, Some(r))
+                }
+                Err(f) => {
+                    let error = format!("{}:{}: {}", f.line, f.column, f.message);
+                    eprintln!("warning: skipping {}:{error}", file.display());
+                    coverage.skipped.push(SkippedFile { file: rel(&file), lines: text.lines().count(), error });
+                    continue;
+                }
+            },
         };
         coverage.files += 1;
         coverage.lines += text.lines().count();
         let mut uses = UseCollector::default();
         uses.visit_file(&ast);
-        let mut s = Scanner::new(&active, &root_map, &file, &text, uses.leaves, pkg, cx.rustc);
+        // A repaired file is scanned as patched text, so what it reports is mapped back to the original.
+        let scanned = repaired.as_ref().map_or(text.as_str(), |r| r.text.as_str());
+        let mut s = Scanner::new(&active, &root_map, &file, scanned, uses.leaves, pkg, cx.rustc);
         s.collect_enums(&ast);
         s.visit_file(&ast);
+        if let Some(r) = &repaired {
+            let original: Vec<&str> = text.lines().collect();
+            for h in &mut s.out {
+                h.start = r.to_original(h.start);
+                h.end = r.to_original(h.end);
+                h.source_line = original.get(h.start.line.wrapping_sub(1)).copied().unwrap_or("").to_owned();
+                h.edits = None; // built from patched text: not safe to apply
+            }
+        }
         hits.extend(s.out);
     }
 
